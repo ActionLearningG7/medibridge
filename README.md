@@ -1,6 +1,17 @@
-# Getting Started with Create React App
+# MediBridge Frontend
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Healthcare Management System - React Frontend Application
+
+## Tech Stack
+
+- **React 18** - UI Library (Create React App)
+- **React Router v6** - Routing
+- **Redux Toolkit** - State Management
+- **RTK Query** - API Integration & Caching
+- **React Hook Form** - Form Management
+- **Zod** - Schema Validation
+- **Tailwind CSS** - Styling
+- **SockJS + STOMP** - WebSocket for Real-time Updates
 
 ## Available Scripts
 

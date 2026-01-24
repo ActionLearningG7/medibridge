@@ -1,24 +1,44 @@
-import logo from './logo.svg';
-import './App.css';
+import { useEffect } from 'react';
+import { Provider, useDispatch, useSelector } from 'react-redux';
+import { store } from './app/store';
+import { restoreAuth, selectAuthInitialized } from './features/auth/authSlice';
+import AppRouter from './router/AppRouter';
+import ToastProvider from './components/feedback/ToastProvider';
+
+// Auth Initializer Component
+const AuthInitializer = ({ children }) => {
+  const dispatch = useDispatch();
+  const initialized = useSelector(selectAuthInitialized);
+
+  useEffect(() => {
+    console.log('🔄 Initializing auth from localStorage...');
+    dispatch(restoreAuth());
+  }, [dispatch]);
+
+  // Show loading screen while initializing
+  if (!initialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mb-4" />
+          <p className="text-sm text-gray-600">Loading MediBridge...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return children;
+};
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <Provider store={store}>
+      <ToastProvider>
+        <AuthInitializer>
+          <AppRouter />
+        </AuthInitializer>
+      </ToastProvider>
+    </Provider>
   );
 }
 
