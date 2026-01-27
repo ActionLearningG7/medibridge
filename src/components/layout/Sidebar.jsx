@@ -4,14 +4,21 @@
  */
 
 import { Link, useLocation } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { X } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { getNavigation } from '../../utils/navConfig';
 import { isRouteActive } from '../../utils/guards';
+import { selectCurrentUser } from '../../features/auth/authSlice';
 
 const Sidebar = ({ isOpen, onClose, role, className }) => {
   const location = useLocation();
-  const navigation = getNavigation(role);
+  const user = useSelector(selectCurrentUser);
+
+  console.log('🔍 Sidebar - Role:', role, 'User:', user);
+  console.log('🔍 Sidebar - isAdmin:', user?.isAdmin);
+
+  const navigation = getNavigation(role, user);
 
   return (
     <>
@@ -56,8 +63,24 @@ const Sidebar = ({ isOpen, onClose, role, className }) => {
         {/* Navigation */}
         <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
           {navigation.map((item) => {
+            // Skip divider items
+            if (item.isDivider) {
+              return (
+                <div key={item.id} className="py-2">
+                  <div className="px-3 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                    {item.label}
+                  </div>
+                </div>
+              );
+            }
+
             const Icon = item.icon;
             const isActive = isRouteActive(item.href, location.pathname);
+
+            // If icon is undefined, skip rendering
+            if (!Icon) {
+              return null;
+            }
 
             return (
               <Link

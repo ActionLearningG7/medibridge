@@ -10,7 +10,7 @@ import DeviceStatus from './DeviceStatus';
 const CallHeader = ({
   participantName,
   participantRole,
-  connectionStatus = 'connecting', // 'connecting', 'waiting', 'connected', 'ended'
+  connectionStatus, // 'idle', 'connecting', 'waiting', 'connected', 'ended'
   duration = '00:00',
   microphoneOn = true,
   cameraOn = true,
@@ -18,6 +18,18 @@ const CallHeader = ({
 }) => {
   const getStatusConfig = () => {
     switch (connectionStatus) {
+      case 'idle':
+        return {
+          bg: 'bg-gray-50',
+          border: 'border-gray-200',
+          text: 'text-gray-800',
+          icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+          ),
+          message: 'Ready to start consultation',
+        };
       case 'connecting':
         return {
           bg: 'bg-yellow-50',
@@ -118,7 +130,7 @@ const CallHeader = ({
 CallHeader.propTypes = {
   participantName: PropTypes.string,
   participantRole: PropTypes.string,
-  connectionStatus: PropTypes.oneOf(['connecting', 'waiting', 'connected', 'ended']),
+  connectionStatus: PropTypes.oneOf(['idle', 'connecting', 'waiting', 'connected', 'ended']),
   duration: PropTypes.string,
   microphoneOn: PropTypes.bool,
   cameraOn: PropTypes.bool,

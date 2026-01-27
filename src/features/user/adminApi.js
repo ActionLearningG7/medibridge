@@ -28,9 +28,9 @@ export const adminApi = baseApi.injectEndpoints({
       providesTags: (result) =>
         result
           ? [
-              ...result.map(({ id }) => ({ type: 'Admin', id })),
-              { type: 'Admin', id: 'LIST' },
-            ]
+            ...result.map(({ id }) => ({ type: 'Admin', id })),
+            { type: 'Admin', id: 'LIST' },
+          ]
           : [{ type: 'Admin', id: 'LIST' }],
     }),
 
@@ -141,6 +141,10 @@ export const adminApi = baseApi.injectEndpoints({
      * DELETE /api/v1/admin/{userId}
      * Soft delete admin profile (SUPER_ADMIN role)
      */
+    /**
+     * DELETE /api/v1/admin/{userId}
+     * Soft delete admin profile (SUPER_ADMIN role)
+     */
     deleteAdmin: builder.mutation({
       query: (userId) => ({
         url: `/api/v1/admin/${userId}`,
@@ -150,6 +154,29 @@ export const adminApi = baseApi.injectEndpoints({
         { type: 'Admin', id: userId },
         { type: 'Admin', id: 'LIST' },
       ],
+    }),
+
+    /**
+     * GET /api/v1/organization/address
+     * Get hospital address
+     */
+    getHospitalAddress: builder.query({
+      query: () => '/api/v1/organization/address',
+      transformResponse: (response) => response?.data || response,
+      providesTags: ['Organization'],
+    }),
+
+    /**
+     * PUT /api/v1/organization/address
+     * Update hospital address (ADMIN only)
+     */
+    updateHospitalAddress: builder.mutation({
+      query: (addressData) => ({
+        url: '/api/v1/organization/address',
+        method: 'PUT',
+        body: addressData,
+      }),
+      invalidatesTags: ['Organization'],
     }),
   }),
 });
@@ -167,6 +194,8 @@ export const {
   useGetAllDoctorsAdminQuery,
   useGetAllPhlebotomistsQuery,
   useDeleteAdminMutation,
+  useGetHospitalAddressQuery,
+  useUpdateHospitalAddressMutation,
 } = adminApi;
 
 export default adminApi;

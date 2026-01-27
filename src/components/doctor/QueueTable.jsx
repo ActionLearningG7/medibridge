@@ -13,11 +13,11 @@ const QueueTable = ({ entries, onStart, onComplete, onNoShow, onSkip, avgConsult
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setTick(tick => tick + 1);
+      setTick(prevTick => prevTick + 1);
     }, 30000); // Update every 30 seconds
 
     return () => clearInterval(timer);
-  }, []);
+  }, []); // Empty dependency array is correct - interval should only be set once
 
   // Debug log for first entry
   useEffect(() => {
@@ -167,7 +167,7 @@ const QueueTable = ({ entries, onStart, onComplete, onNoShow, onSkip, avgConsult
                     <div className="flex justify-end space-x-2">
                       {entry.status === 'CALLED' && (
                         <button
-                          onClick={() => onStart(entry.id)}
+                          onClick={() => onStart(entry)}
                           className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                           title="Start Consultation"
                         >
@@ -181,7 +181,7 @@ const QueueTable = ({ entries, onStart, onComplete, onNoShow, onSkip, avgConsult
 
                       {(entry.status === 'SERVING' || entry.status === 'IN_PROGRESS') && (
                         <button
-                          onClick={() => onComplete(entry.id)}
+                          onClick={() => onComplete(entry)}
                           className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
                           title="Complete Consultation"
                         >
@@ -195,7 +195,7 @@ const QueueTable = ({ entries, onStart, onComplete, onNoShow, onSkip, avgConsult
                       {(entry.status === 'WAITING' || entry.status === 'CALLED') && (
                         <>
                           <button
-                            onClick={() => onNoShow(entry.id)}
+                            onClick={() => onNoShow(entry)}
                             className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                             title="Mark as No-Show"
                           >
@@ -207,7 +207,7 @@ const QueueTable = ({ entries, onStart, onComplete, onNoShow, onSkip, avgConsult
 
                           {entry.status === 'CALLED' && (
                             <button
-                              onClick={() => onSkip(entry.id)}
+                              onClick={() => onSkip(entry)}
                               className="inline-flex items-center px-3 py-1 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                               title="Skip Patient"
                             >

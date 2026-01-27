@@ -16,9 +16,13 @@ const Topbar = ({ onMenuClick, user, role, className }) => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     console.log('🔴 User clicked logout button');
+    // Close menu immediately for better UX
+    setUserMenuOpen(false);
+    // Dispatch logout action
     dispatch(logout({ reason: 'manual_logout' }));
+    // Navigate immediately (don't wait for async operations)
     navigate('/login');
   };
 

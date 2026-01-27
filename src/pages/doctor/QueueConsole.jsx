@@ -268,7 +268,8 @@ const DoctorQueueConsole = () => {
           
           let errorMessage = 'Failed to start consultation';
           if (error?.status === 400) {
-            errorMessage = 'Invalid consultation state. Please try again.';
+            // Try to get the actual backend error message
+            errorMessage = error?.data?.message || 'Invalid consultation state. Please try again.';
           } else if (error?.status === 404) {
             errorMessage = 'Consultation not found. Please refresh and try again.';
           } else if (error?.status === 409) {

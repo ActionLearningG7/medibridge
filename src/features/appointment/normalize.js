@@ -32,7 +32,7 @@ export const maskPatientId = (patientId) => {
 export const normalizeQueueEntry = (dto) => {
   if (!dto) return null;
 
-  // Parse all dates
+  // Parse all dates and convert to ISO strings (serializable)
   const joinedAt = parseDate(dto.joinedAt);
   const calledAt = parseDate(dto.calledAt);
   const startedAt = parseDate(dto.startedAt);
@@ -78,12 +78,12 @@ export const normalizeQueueEntry = (dto) => {
     status: dto.status || 'UNKNOWN',
     priority: dto.priority || 'NORMAL',
 
-    // Timestamps (parsed)
-    joinedAt,
-    calledAt,
-    startedAt,
-    endedAt,
-    estimatedStartTime,
+    // Timestamps (stored as ISO strings for Redux serialization)
+    joinedAt: joinedAt ? joinedAt.toISOString() : null,
+    calledAt: calledAt ? calledAt.toISOString() : null,
+    startedAt: startedAt ? startedAt.toISOString() : null,
+    endedAt: endedAt ? endedAt.toISOString() : null,
+    estimatedStartTime: estimatedStartTime ? estimatedStartTime.toISOString() : null,
 
     // Computed fields
     waitMinutes,

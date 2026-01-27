@@ -41,12 +41,21 @@ const createServiceBaseQuery = (service) => fetchBaseQuery({
       headers.set('Content-Type', 'application/json');
     }
 
-    // Prevent caching on mutations (especially auth endpoints)
-    if (endpoint === 'login' || endpoint === 'register' || endpoint === 'logout') {
-      headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-      headers.set('Pragma', 'no-cache');
-      headers.set('Expires', '0');
+    // Add X-Is-Admin header for Phlebotomists
+    // This is required for PhlebotomistAdminController endpoints
+    const state = getState();
+    const user = state.auth?.user;
+    // Fallback to localStorage if not in state yet
+    const userFromStorage = !user && typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || 'null') : null;
+    const currentUser = user || userFromStorage;
+
+    if (currentUser && currentUser.role === 'PHLEBOTOMIST') {
+      headers.set('X-Is-Admin', String(currentUser.isAdmin || false));
     }
+
+    // Note: Cache-Control headers should be set by the SERVER in response headers,
+    // not by the client in request headers. Setting them here causes CORS preflight issues.
+    // Removed: Cache-Control, Pragma, Expires headers on auth endpoints
 
     return headers;
   },
@@ -57,8 +66,44 @@ const createServiceBaseQuery = (service) => fetchBaseQuery({
  */
 const baseQueryWithAuth = createServiceBaseQuery('api_gateway');
 
+/**
+ * Create appointment service base query with error handling
+ * Used for consultation API - appointment_service is a RESOURCE SERVER
+ *
+ * CRITICAL: appointment_service does NOT have /auth/refresh endpoint
+ * Only user_service has token refresh capability
+ *
+ * On 401 from appointment_service:
+ * - Do NOT attempt refresh (wrong service)
+ * - Return error and let component handle logout
+ */
+const appointmentServiceBaseQueryWithReauth = async (args, api, extraOptions) => {
+  let result = await createServiceBaseQuery('appointment_service')(args, api, extraOptions);
+
+  // Handle 401 Unauthorized from appointment_service
+  if (result.error && result.error.status === 401) {
+    const requestUrl = typeof args === 'string' ? args : args.url;
+
+    console.log('🔴 [appointmentService] 401 Unauthorized:', {
+      url: requestUrl,
+      message: 'Token invalid or expired - user must login again'
+    });
+
+    // CRITICAL: Do NOT attempt token refresh here
+    // appointment_service is a resource server, not auth server
+    // Token refresh is only available on user_service
+    //
+    // Return error and let component handle it
+    // Component should redirect to login
+
+    return result;
+  }
+
+  return result;
+};
+
 // Export base queries for use in other API slices
-export { baseQueryWithAuth, createServiceBaseQuery };
+export { baseQueryWithAuth, createServiceBaseQuery, appointmentServiceBaseQueryWithReauth };
 
 /**
  * Base query with 401 error handling
@@ -108,10 +153,10 @@ const baseQueryWithReauth = async (args, api, extraOptions) => {
   if (result.error && result.error.status === 401) {
     const requestUrl = typeof args === 'string' ? args : args.url;
     const isAuthEndpoint = requestUrl?.includes('/auth/login') ||
-                          requestUrl?.includes('/auth/register') ||
-                          requestUrl?.includes('/auth/refresh') ||
-                          requestUrl?.includes('/auth/forgot-password') ||
-                          requestUrl?.includes('/auth/reset-password');
+      requestUrl?.includes('/auth/register') ||
+      requestUrl?.includes('/auth/refresh') ||
+      requestUrl?.includes('/auth/forgot-password') ||
+      requestUrl?.includes('/auth/reset-password');
 
     console.log('🔴 401 Unauthorized:', { url: requestUrl, isAuthEndpoint });
 
@@ -167,10 +212,6 @@ const baseQueryWithReauth = async (args, api, extraOptions) => {
           error: refreshResult.error
         });
 
-        console.error('⏸️ PAUSING 3 seconds - Check console logs!');
-
-        // Pause before logout to allow log inspection
-        await new Promise(resolve => setTimeout(resolve, 3000));
 
         // Logout user
         api.dispatch({ type: 'auth/logout', payload: { reason: 'refresh_failed' } });
@@ -182,10 +223,6 @@ const baseQueryWithReauth = async (args, api, extraOptions) => {
       }
     } else {
       console.error('✗ No refresh token available, logging out');
-      console.error('⏸️ PAUSING 3 seconds - Check console logs!');
-
-      // Pause before logout to allow log inspection
-      await new Promise(resolve => setTimeout(resolve, 3000));
 
       // Logout user
       api.dispatch({ type: 'auth/logout', payload: { reason: 'no_refresh_token' } });

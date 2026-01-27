@@ -1,5 +1,5 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
-import { baseQueryWithAuth } from '../../app/api/baseApi';
+import { appointmentServiceBaseQueryWithReauth } from '../../app/api/baseApi';
 
 /**
  * Consultation API
@@ -11,7 +11,7 @@ import { baseQueryWithAuth } from '../../app/api/baseApi';
  */
 export const consultationApi = createApi({
   reducerPath: 'consultationApi',
-  baseQuery: baseQueryWithAuth,
+  baseQuery: appointmentServiceBaseQueryWithReauth,
   tagTypes: ['VideoSession', 'ActiveSession'],
   endpoints: (builder) => ({
     /**

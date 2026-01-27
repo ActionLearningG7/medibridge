@@ -6,7 +6,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { selectCurrentUser, selectAccessToken, selectAuthInitialized } from '../../features/auth/authSlice';
-import { useGetMyAdminProfileQuery, useGetSystemStatisticsQuery, useGetAllDoctorsAdminQuery } from '../../features/user/adminApi';
+import { useGetSystemStatisticsQuery, useGetAllDoctorsAdminQuery } from '../../features/user/adminApi';
 import { useGetPendingVerificationsQuery } from '../../features/user/doctorApi';
 import { PageHeader } from '../../components/layout';
 import MetricCard from '../../components/dashboard/MetricCard';
@@ -23,11 +23,6 @@ const AdminDashboard = () => {
 
   // Skip queries until auth is ready
   const shouldSkipQueries = !initialized || !accessToken;
-
-  // Fetch admin profile - skip if not ready
-  const { data: profile, isLoading: profileLoading } = useGetMyAdminProfileQuery(undefined, {
-    skip: shouldSkipQueries,
-  });
 
   // Fetch system statistics - skip if not ready
   const { data: stats, isLoading: statsLoading } = useGetSystemStatisticsQuery(undefined, {
@@ -57,9 +52,9 @@ const AdminDashboard = () => {
     const activities = [];
 
     // Add pending verifications
-    pendingDoctors.slice(0, 3).forEach((doctor) => {
+    pendingDoctors.slice(0, 3).forEach((doctor, idx) => {
       activities.push({
-        id: `pending-${doctor.id}`,
+        id: `pending-${doctor.id || idx}`,
         type: 'warning',
         title: 'Doctor pending verification',
         description: `Dr. ${doctor.firstName} ${doctor.lastName} - ${doctor.specialization}`,
@@ -72,9 +67,9 @@ const AdminDashboard = () => {
     [...allDoctors]
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
       .slice(0, 3)
-      .forEach((doctor) => {
+      .forEach((doctor, idx) => {
         activities.push({
-          id: `doctor-${doctor.id}`,
+          id: `doctor-${doctor.id || idx}-${idx}`,
           type: doctor.verificationStatus === 'VERIFIED' ? 'success' : 'user',
           title: `New doctor registered`,
           description: `Dr. ${doctor.firstName} ${doctor.lastName} - ${doctor.specialization}`,
@@ -355,24 +350,24 @@ const AdminDashboard = () => {
           </div>
 
           {/* Admin Profile Card */}
-          {!profileLoading && profile && (
+          {currentUser && (
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Your Profile</h3>
               <div className="space-y-3">
                 <div>
                   <p className="text-xs text-gray-500">Name</p>
                   <p className="text-sm font-medium text-gray-900">
-                    {profile.firstName} {profile.lastName}
+                    {currentUser.firstName} {currentUser.lastName}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">Email</p>
-                  <p className="text-sm font-medium text-gray-900">{profile.email}</p>
+                  <p className="text-sm font-medium text-gray-900">{currentUser.email}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500">Admin Level</p>
+                  <p className="text-xs text-gray-500">Role</p>
                   <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800">
-                    {profile.adminLevel || 'ADMIN'}
+                    {currentUser.roles?.[0] || 'ADMIN'}
                   </span>
                 </div>
                 <button

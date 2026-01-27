@@ -155,7 +155,7 @@ const QueueStatus = ({ queueEntry, onLeave, onJoinVideo }) => {
         )}
 
         {/* Actions */}
-        {queueEntry.status === 'WAITING' && (
+        {queueEntry.status === 'CALLED' && (
           <div className="mt-6 pt-6 border-t border-gray-200">
             <button
               onClick={onLeave}
@@ -163,13 +163,10 @@ const QueueStatus = ({ queueEntry, onLeave, onJoinVideo }) => {
             >
               Leave Queue
             </button>
-            <p className="text-xs text-gray-500 text-center mt-2">
-              Note: Leave queue feature is coming soon
-            </p>
           </div>
         )}
 
-        {queueEntry.status === 'CALLED' && (
+        {queueEntry.status === 'WAITING' && (
           <div className="mt-6">
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
               <div className="flex items-start">

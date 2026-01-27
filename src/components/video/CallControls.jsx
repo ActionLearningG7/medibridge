@@ -37,9 +37,9 @@ const CallControls = ({
 
     // Show toast feedback
     if (isMuted) {
-      showToast('Microphone unmuted', 'success');
+      showToast.success('Microphone unmuted');
     } else {
-      showToast('Microphone muted', 'info');
+      showToast.info('Microphone muted');
     }
   };
 
@@ -51,9 +51,9 @@ const CallControls = ({
 
     // Show toast feedback
     if (isVideoOff) {
-      showToast('Camera turned on', 'success');
+      showToast.success('Camera turned on');
     } else {
-      showToast('Camera turned off', 'info');
+      showToast.info('Camera turned off');
     }
   };
 
@@ -61,7 +61,7 @@ const CallControls = ({
   const handleEndCall = () => {
     if (disabled) return;
 
-    showToast('Ending call...', 'info');
+    showToast.info('Ending call...');
     onEndCall();
   };
 
