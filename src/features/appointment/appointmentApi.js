@@ -67,9 +67,9 @@ export const appointmentApi = baseApi.injectEndpoints({
       providesTags: (result) =>
         result
           ? [
-              ...result.map(({ id }) => ({ type: 'Appointment', id })),
-              { type: 'Appointment', id: 'LIST' },
-            ]
+            ...result.map(({ id }) => ({ type: 'Appointment', id })),
+            { type: 'Appointment', id: 'LIST' },
+          ]
           : [{ type: 'Appointment', id: 'LIST' }],
     }),
 
@@ -108,6 +108,19 @@ export const appointmentApi = baseApi.injectEndpoints({
         url: '/api/v1/queues/join',
         method: 'POST',
         body: queueData,
+      }),
+      transformResponse: (response) => response?.data || response,
+      invalidatesTags: ['Queue'],
+    }),
+
+    /**
+     * POST /api/v1/queues/{queueId}/leave
+     * Leave queue (PATIENT role)
+     */
+    leaveQueue: builder.mutation({
+      query: (queueId) => ({
+        url: `/api/v1/queues/${queueId}/leave`,
+        method: 'POST',
       }),
       transformResponse: (response) => response?.data || response,
       invalidatesTags: ['Queue'],
@@ -259,6 +272,7 @@ export const {
   useGetAppointmentByIdQuery,
   useLazyGetAppointmentByIdQuery,
   useJoinQueueMutation,
+  useLeaveQueueMutation,
   useGetMyActiveQueueQuery,
   useLazyGetMyActiveQueueQuery,
   // Doctor endpoints

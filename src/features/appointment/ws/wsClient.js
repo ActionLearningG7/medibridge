@@ -40,6 +40,13 @@ class WebSocketClient {
    */
   connect(token) {
     return new Promise((resolve, reject) => {
+      // Validate token is available
+      if (!token) {
+        console.warn('[WebSocket] No token provided, cannot connect');
+        reject(new Error('No authentication token available'));
+        return;
+      }
+
       if (this.isConnected) {
         console.log('[WebSocket] Already connected');
         resolve();
@@ -55,9 +62,11 @@ class WebSocketClient {
 
       try {
         // Get WebSocket URL from environment
+        // SockJS accepts HTTP/HTTPS URLs and will upgrade to WebSocket
         const wsUrl = process.env.REACT_APP_APPOINTMENT_WS_URL || 'http://localhost:8080/ws';
 
         console.log('[WebSocket] Connecting to:', wsUrl);
+        console.log('[WebSocket] Token:', token.substring(0, 20) + '...');
 
         // Create SockJS connection
         const socket = new SockJS(wsUrl);

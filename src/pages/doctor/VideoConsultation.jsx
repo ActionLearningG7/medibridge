@@ -9,6 +9,7 @@ import {
 } from '../../features/appointment/consultationApi';
 import useWebrtcSocket from '../../hooks/useWebrtcSocket';
 import useWebrtcPeer from '../../hooks/useWebrtcPeer';
+import PrescriptionBuilder from '../../components/prescription/PrescriptionBuilder';
 
 /**
  * Doctor Video Consultation Page (CALLER FLOW)
@@ -27,6 +28,15 @@ const DoctorVideoConsultation = () => {
   const location = useLocation();
   const { user } = useSelector((state) => state.auth);
 
+  // Get session data from navigation state (passed from queue console after creating session)
+  const navigationSession = location.state?.sessionId ? {
+    sessionId: location.state.sessionId,
+    roomId: location.state.roomId,
+    patientId: location.state.patientId,
+    patientName: location.state.patientName,
+    queueEntryId: location.state.queueEntryId,
+  } : null;
+
   // Get queue entry ID from navigation state (if starting from queue console)
   const queueEntryId = location.state?.queueEntryId;
 
@@ -35,6 +45,8 @@ const DoctorVideoConsultation = () => {
   const [duration, setDuration] = useState('00:00');
   const [showStartButton, setShowStartButton] = useState(false);
   const [error, setError] = useState(null);
+  const [sessionInitialized, setSessionInitialized] = useState(!!navigationSession); // Track if we have an initial session
+  const [showPrescriptionDrawer, setShowPrescriptionDrawer] = useState(false);
 
   // Refs to prevent stale closures
   const webrtcHandlersRef = useRef(null);
@@ -53,6 +65,14 @@ const DoctorVideoConsultation = () => {
   const [endVideoSession] = useEndVideoSessionMutation();
 
   // WebSocket signaling (connects when roomId available)
+  // Use active session from API, fall back to navigation session
+  const sessionForSignaling = activeSession || navigationSession;
+  console.log('📹 [Doctor] sessionForSignaling:', {
+    hasActiveSession: !!activeSession,
+    hasNavigationSession: !!navigationSession,
+    sessionForSignaling,
+    roomId: sessionForSignaling?.roomId,
+  });
   const {
     isConnected: isSignalingConnected,
     connectionStatus: signalingStatus,
@@ -61,7 +81,7 @@ const DoctorVideoConsultation = () => {
     sendAnswer,
     sendIceCandidate,
     sendLeave,
-  } = useWebrtcSocket(activeSession?.roomId, {
+  } = useWebrtcSocket(sessionForSignaling?.roomId, {
     autoConnect: true,
     onSignal: (signal) => {
       console.log('📨 [Doctor] Received signal:', signal.type);
@@ -155,22 +175,32 @@ const DoctorVideoConsultation = () => {
   // Check if we have an active session
   useEffect(() => {
     if (isLoadingSession) {
-      setConnectionStatus('idle');
-      setShowStartButton(false);
+      // If we came from queue console with a session, don't show loading
+      if (navigationSession) {
+        setConnectionStatus('idle');
+        setShowStartButton(false);
+      } else {
+        setConnectionStatus('idle');
+        setShowStartButton(false);
+      }
       return;
     }
 
-    if (activeSession) {
+    // Prefer the API response, fall back to navigation state
+    const session = activeSession || navigationSession;
+
+    if (session) {
       console.log('📹 [Doctor] Active session found:', {
-        sessionId: activeSession.sessionId,
-        roomId: activeSession.roomId,
+        sessionId: session.sessionId,
+        roomId: session.roomId,
       });
       setShowStartButton(false);
+      setSessionInitialized(true);
     } else {
       console.log('ℹ️ [Doctor] No active session');
       setShowStartButton(true);
     }
-  }, [activeSession, isLoadingSession]);
+  }, [activeSession, isLoadingSession, navigationSession]);
 
   // Update connection status based on WebRTC status
   useEffect(() => {
@@ -254,11 +284,12 @@ const DoctorVideoConsultation = () => {
       // Hang up WebRTC (stop streams, close peer connection)
       hangUp();
 
-      // End session on backend
-      if (activeSession?.sessionId) {
+      // End session on backend - use active session from API, fall back to navigation session
+      const sessionForEndCall = activeSession || navigationSession;
+      if (sessionForEndCall?.sessionId) {
         console.log('📤 [Doctor] Calling end-session API');
         await endVideoSession({
-          sessionId: activeSession.sessionId,
+          sessionId: sessionForEndCall.sessionId,
           reason: 'Doctor ended consultation',
           notes: null,
         }).unwrap();
@@ -276,7 +307,7 @@ const DoctorVideoConsultation = () => {
         navigate('/doctor/queue');
       }, 2000);
     }
-  }, [activeSession, endVideoSession, hangUp, navigate]);
+  }, [activeSession, navigationSession, endVideoSession, hangUp, navigate]);
 
   // Toggle microphone
   const handleToggleMute = useCallback(() => {
@@ -295,15 +326,18 @@ const DoctorVideoConsultation = () => {
     ? `Dr. ${user.firstName} ${user.lastName || ''}`.trim()
     : 'You';
 
-  const remoteParticipantName = activeSession?.patientName || 'Patient';
+  const remoteParticipantName = (activeSession || navigationSession)?.patientName || 'Patient';
   const remoteParticipantRole = 'Patient';
+
+
+  console.log("signal :: " + isSignalingConnected);
 
   // Signaling status indicator
   const signalingStatusText = isSignalingConnected
     ? '✅ Signaling Connected'
     : signalingStatus === 'connecting'
-    ? '🔄 Signaling Connecting...'
-    : '🔴 Signaling Disconnected';
+      ? '🔄 Signaling Connecting...'
+      : '🔴 Signaling Disconnected';
 
   // Loading state
   if (isLoadingSession) {
@@ -412,266 +446,46 @@ const DoctorVideoConsultation = () => {
         onEndCall={handleEndCall}
         connectionQuality="good"
       />
-    </div>
-  );
-};
 
-export default DoctorVideoConsultation;
-
-
-  // Local state for UI
-  const [connectionStatus, setConnectionStatus] = useState('connecting');
-  const [duration, setDuration] = useState('00:00');
-  const [connectionQuality, setConnectionQuality] = useState('good');
-  const [showStartButton, setShowStartButton] = useState(false);
-  const [error, setError] = useState(null);
-
-  // Check if we have an active session
-  useEffect(() => {
-    if (isLoadingSession) {
-      setConnectionStatus('connecting');
-      setShowStartButton(false);
-      return;
-    }
-
-    if (activeSession) {
-      console.log('📹 Active session found:', activeSession);
-
-      // Update connection status based on signaling
-      if (isSignalingConnected) {
-        setConnectionStatus('connected');
-      } else {
-        setConnectionStatus('waiting');
-      }
-
-      setShowStartButton(false);
-    } else {
-      console.log('ℹ️ No active session');
-      setConnectionStatus('waiting');
-      setShowStartButton(true);
-    }
-  }, [activeSession, isLoadingSession, isSignalingConnected]);
-
-  // Handle start video session
-  const handleStartSession = async () => {
-    if (!queueEntryId) {
-      setError('Queue entry ID is required to start video session');
-      return;
-    }
-
-    try {
-      setError(null);
-      setConnectionStatus('connecting');
-      setShowStartButton(false);
-
-      const result = await startVideoSession({
-        queueEntryId,
-        consultationId: null,
-      }).unwrap();
-
-      console.log('✅ Video session started:', result);
-
-      await refetchSession();
-    } catch (err) {
-      console.error('❌ Failed to start video session:', err);
-      setError(err.data?.message || 'Failed to start video session');
-      setConnectionStatus('waiting');
-      setShowStartButton(true);
-    }
-  };
-
-  // Update connection status based on WebRTC status
-  useEffect(() => {
-    if (webrtcStatus === 'connected') {
-      setConnectionStatus('connected');
-    } else if (webrtcStatus === 'connecting') {
-      setConnectionStatus('connecting');
-    } else if (webrtcStatus === 'failed') {
-      setConnectionStatus('waiting');
-      setError(webrtcError);
-    }
-  }, [webrtcStatus, webrtcError]);
-
-  // Duration counter (when connected)
-  useEffect(() => {
-    if (connectionStatus !== 'connected') return;
-
-    let seconds = 0;
-    const interval = setInterval(() => {
-      seconds++;
-      const mins = Math.floor(seconds / 60);
-      const secs = seconds % 60;
-      setDuration(`${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`);
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [connectionStatus]);
-
-  // Toggle microphone (use WebRTC hook)
-  const handleToggleMute = useCallback(() => {
-    toggleMic();
-  }, [toggleMic]);
-
-  // Toggle camera (use WebRTC hook)
-  const handleToggleVideo = useCallback(() => {
-    toggleCam();
-  }, [toggleCam]);
-
-  // End call
-  const handleEndCall = useCallback(async () => {
-    if (!activeSession?.sessionId) {
-      console.error('No active session to end');
-      hangUp();
-      navigate('/doctor/queue');
-      return;
-    }
-
-    try {
-      setConnectionStatus('ended');
-
-      // Hang up WebRTC
-      hangUp();
-
-      await endVideoSession({
-        sessionId: activeSession.sessionId,
-        reason: 'Doctor ended consultation',
-        notes: null,
-      }).unwrap();
-
-      console.log('✅ Video session ended successfully');
-
-      setTimeout(() => {
-        navigate('/doctor/queue');
-      }, 2000);
-    } catch (err) {
-      console.error('❌ Failed to end video session:', err);
-      setTimeout(() => {
-        navigate('/doctor/queue');
-      }, 2000);
-    }
-  }, [activeSession, endVideoSession, hangUp, navigate]);
-
-  // Get participant info
-  const localParticipantName = user?.firstName
-    ? `Dr. ${user.firstName} ${user.lastName || ''}`.trim()
-    : 'You';
-
-  const remoteParticipantName = activeSession?.patientName || 'Patient';
-  const remoteParticipantRole = 'Patient';
-
-  // Signaling status indicator
-  const signalingStatusText = isSignalingConnected
-    ? '✅ Signaling Connected'
-    : signalingStatus === 'connecting'
-    ? '🔄 Signaling Connecting...'
-    : '🔴 Signaling Disconnected';
-
-  // Loading state
-  if (isLoadingSession) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-gray-100">
-        <div className="text-center">
-          <svg className="animate-spin w-12 h-12 text-primary-600 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-          </svg>
-          <p className="text-gray-700 text-lg font-medium">Loading video session...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Show start button if no active session
-  if (showStartButton && !activeSession) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-gray-100">
-        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
-          <div className="w-20 h-20 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <svg className="w-10 h-10 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+      {/* Prescription Button (Doctor Only) */}
+      {connectionStatus === 'connected' && (
+        <div className="absolute bottom-24 right-6 z-40">
+          <button
+            onClick={() => setShowPrescriptionDrawer(true)}
+            className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-3 rounded-full shadow-lg transition-transform transform hover:scale-105 font-medium"
+          >
+            <svg itemType="pill" className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
             </svg>
-          </div>
-
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            Start Video Consultation
-          </h2>
-
-          <p className="text-gray-600 mb-6">
-            {queueEntryId
-              ? 'Click the button below to start the video consultation with your patient.'
-              : 'No queue entry selected. Please start from the queue console.'}
-          </p>
-
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-sm text-red-800">{error}</p>
-            </div>
-          )}
-
-          <div className="flex space-x-3">
-            <button
-              onClick={() => navigate('/doctor/queue')}
-              className="flex-1 px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              Back to Queue
-            </button>
-
-            {queueEntryId && (
-              <button
-                onClick={handleStartSession}
-                disabled={isStarting}
-                className="flex-1 px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isStarting ? (
-                  <span className="flex items-center justify-center">
-                    <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    Starting...
-                  </span>
-                ) : (
-                  'Start Video'
-                )}
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Show video call layout
-  return (
-    <div className="relative">
-      {/* Signaling Status Indicator */}
-      {activeSession && (
-        <div className="absolute top-4 right-4 z-50 bg-white rounded-lg shadow-lg px-4 py-2 border border-gray-200">
-          <p className="text-sm font-medium">{signalingStatusText}</p>
-          {signalingError && (
-            <p className="text-xs text-red-600 mt-1">Error: {signalingError.message}</p>
-          )}
+            Prescription
+          </button>
         </div>
       )}
 
-      <CallLayout
-        localParticipantName={localParticipantName}
-        remoteParticipantName={remoteParticipantName}
-        remoteParticipantRole={remoteParticipantRole}
-        connectionStatus={connectionStatus}
-        duration={duration}
-        isMuted={isLocalMuted}
-        isVideoOff={isLocalVideoOff}
-        isRemoteVideoOff={!remoteStream}
-        localStream={localStream}
-        remoteStream={remoteStream}
-        onToggleMute={handleToggleMute}
-        onToggleVideo={handleToggleVideo}
-        onEndCall={handleEndCall}
-        connectionQuality={connectionQuality}
-      />
+      {/* Prescription Drawer */}
+      {(showPrescriptionDrawer) && (
+        <div className="fixed inset-0 z-50 overflow-hidden">
+          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm transition-opacity" onClick={() => setShowPrescriptionDrawer(false)} />
+          <div className="fixed inset-y-0 right-0 flex max-w-full pl-10">
+            <div className="w-screen max-w-2xl transform transition-transform bg-white shadow-xl flex flex-col h-full animate-slide-in-right">
+              <div className="flex-1 overflow-y-auto">
+                <PrescriptionBuilder
+                  initialPatientId={(activeSession || navigationSession)?.patientId}
+                  initialAppointmentId={(activeSession || navigationSession)?.consultationId || (activeSession || navigationSession)?.appointmentId || (activeSession || navigationSession)?.queueEntryId}
+                  onCancel={() => setShowPrescriptionDrawer(false)}
+                  onSuccess={() => {
+                    setShowPrescriptionDrawer(false);
+                    // Optional: show a success toast here if the builder doesn't (it does)
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 export default DoctorVideoConsultation;
+

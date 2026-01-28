@@ -303,57 +303,5 @@ DeviceStatus.propTypes = {
   compact: PropTypes.bool,
 };
 
-export default DeviceStatus;            </svg>
-          )}
-        </div>
-        <span className="text-sm text-gray-600">
-          {microphoneOn ? 'Mic On' : 'Mic Off'}
-        </span>
-      </div>
-
-      {/* Camera Status */}
-      <div className="flex items-center space-x-2">
-        <div className={`${cameraOn ? 'text-gray-700' : 'text-red-500'}`}>
-          {cameraOn ? (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-            </svg>
-          ) : (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-            </svg>
-          )}
-        </div>
-        <span className="text-sm text-gray-600">
-          {cameraOn ? 'Camera On' : 'Camera Off'}
-        </span>
-      </div>
-
-      {/* Connection Quality */}
-      <div className="flex items-center space-x-2">
-        <div className={`flex items-end space-x-0.5 ${getConnectionColor()}`}>
-          {[1, 2, 3, 4].map((bar) => (
-            <div
-              key={bar}
-              className={`w-1 ${
-                bar <= getConnectionBars() ? 'bg-current' : 'bg-gray-300'
-              }`}
-              style={{ height: `${bar * 4}px` }}
-            />
-          ))}
-        </div>
-        <span className={`text-sm capitalize ${getConnectionColor()}`}>
-          {connectionQuality}
-        </span>
-      </div>
-    </div>
-  );
-};
-
-DeviceStatus.propTypes = {
-  microphoneOn: PropTypes.bool,
-  cameraOn: PropTypes.bool,
-  connectionQuality: PropTypes.oneOf(['excellent', 'good', 'fair', 'poor']),
-};
 
 export default DeviceStatus;

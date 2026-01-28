@@ -64,6 +64,17 @@ const useWebrtcPeer = (signalingHooks = {}) => {
   const connectionTimeoutRef = useRef(null);
   const CONNECTION_TIMEOUT_MS = 60000; // 60 seconds
 
+  /**
+   * Clear connection timeout
+   */
+  const clearConnectionTimeout = useCallback(() => {
+    if (connectionTimeoutRef.current) {
+      clearTimeout(connectionTimeoutRef.current);
+      connectionTimeoutRef.current = null;
+      console.log('⏰ [WebRTC] Connection timeout cleared');
+    }
+  }, []);
+
   // Retry counter
   const retryCountRef = useRef(0);
   const MAX_RETRIES = 3;
@@ -356,7 +367,7 @@ const useWebrtcPeer = (signalingHooks = {}) => {
       setError({ message: err.message });
       setStatus('failed');
     }
-  }, [sendAnswer, sendIceCandidate]);
+  }, [sendAnswer, sendIceCandidate, clearConnectionTimeout]);
 
   /**
    * Handle incoming ANSWER
@@ -485,16 +496,6 @@ const useWebrtcPeer = (signalingHooks = {}) => {
     }, CONNECTION_TIMEOUT_MS);
   }, [status, CONNECTION_TIMEOUT_MS]);
 
-  /**
-   * Clear connection timeout
-   */
-  const clearConnectionTimeout = useCallback(() => {
-    if (connectionTimeoutRef.current) {
-      clearTimeout(connectionTimeoutRef.current);
-      connectionTimeoutRef.current = null;
-      console.log('⏰ [WebRTC] Connection timeout cleared');
-    }
-  }, []);
 
   /**
    * Retry connection

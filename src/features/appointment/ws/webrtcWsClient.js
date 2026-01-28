@@ -32,6 +32,65 @@ class WebRTCWebSocketClient {
     // Subscription objects
     this.signalSubscription = null;
     this.presenceSubscription = null;
+
+    // Debug state tracking
+    this.lastSignals = []; // Keep last 10 signals for debug panel
+    this.debugStateCallback = null; // Callback to update debug panel
+  }
+
+  /**
+   * Register callback for debug state updates
+   */
+  onDebugStateChange(callback) {
+    this.debugStateCallback = callback;
+  }
+
+  /**
+   * Emit debug state update
+   */
+  emitDebugStateChange() {
+    if (this.debugStateCallback) {
+      this.debugStateCallback(this.getDebugState());
+    }
+  }
+
+  /**
+   * Get current debug state for CallDebugPanel
+   */
+  getDebugState() {
+    return {
+      isConnected: this.isConnected,
+      roomId: this.roomId,
+      token: this.token ? '***' : null,
+      reconnectAttempts: this.reconnectAttempts,
+      maxReconnectAttempts: this.maxReconnectAttempts,
+      stompClient: this.stompClient,
+      socket: this.socket,
+      signalSubscription: this.signalSubscription,
+      presenceSubscription: this.presenceSubscription,
+      lastSignals: this.lastSignals,
+    };
+  }
+
+  /**
+   * Add signal to debug history
+   */
+  addSignalToHistory(signal, direction = 'recv') {
+    const timestamp = new Date().toLocaleTimeString();
+    const signalEntry = {
+      timestamp,
+      type: signal.type,
+      from: direction === 'recv' ? signal.from || 'peer' : undefined,
+      to: direction === 'send' ? signal.to : undefined,
+      direction,
+    };
+
+    this.lastSignals.unshift(signalEntry);
+    if (this.lastSignals.length > 10) {
+      this.lastSignals.pop();
+    }
+
+    this.emitDebugStateChange();
   }
 
   /**
@@ -41,6 +100,11 @@ class WebRTCWebSocketClient {
     if (this.isConnected && this.roomId === roomId) {
       console.log('🔌 Already connected to room:', roomId);
       return;
+    }
+
+    // Reset connection state if changing rooms
+    if (this.roomId !== roomId) {
+      this.disconnect();
     }
 
     this.roomId = roomId;
@@ -54,16 +118,46 @@ class WebRTCWebSocketClient {
     this.onErrorCallback = callbacks.onError || null;
 
     console.log('🔌 Connecting to WebSocket for room:', roomId);
+    console.log('📋 Token available:', !!token);
+    console.log('🌐 WebSocket URL:', process.env.REACT_APP_APPOINTMENT_WS_URL || 'http://localhost:8080/ws');
 
     try {
       // Get WebSocket URL from environment
-      const wsUrl = process.env.REACT_APP_WS_URL || 'http://localhost:8080/ws';
+      // Uses SockJS with HTTP fallback, so use http:// not ws://
+      const wsUrl = process.env.REACT_APP_APPOINTMENT_WS_URL || 'http://localhost:8080/ws';
+      console.log('🔗 Final WebSocket URL:', wsUrl);
 
-      // Create SockJS connection
-      this.socket = new SockJS(wsUrl);
+      // Create SockJS connection with debug enabled
+      this.socket = new SockJS(wsUrl, null, {
+        debug: true,
+        devel: true,
+        timeout: 20000,
+      });
+      console.log('✅ SockJS socket created, waiting for connection...');
+
+      // Set up socket event handlers for debugging
+      this.socket.onopen = () => {
+        console.log('✅ SockJS socket opened (transport protocol established)');
+      };
+
+      this.socket.onclose = (event) => {
+        console.log('❌ SockJS socket closed');
+        console.log('  - Event code:', event.code);
+        console.log('  - Event reason:', event.reason);
+        console.log('  - Event wasClean:', event.wasClean);
+      };
+
+      this.socket.onerror = (error) => {
+        console.error('❌ SockJS socket error:', error);
+        if (error instanceof Event) {
+          console.error('  - Error type:', error.type);
+          console.error('  - Error message:', error.message);
+        }
+      };
 
       // Create STOMP client
       this.stompClient = Stomp.over(this.socket);
+      console.log('✅ STOMP client created');
 
       // Disable debug logs in production
       if (process.env.NODE_ENV === 'production') {
@@ -75,8 +169,8 @@ class WebRTCWebSocketClient {
         };
       }
 
-      // Set heartbeat (client will send every 10s, expect from server every 10s)
-      this.stompClient.heartbeatIncoming = 10000;
+      // Set heartbeat (client will send every 10s, expect from server every 30s)
+      this.stompClient.heartbeatIncoming = 30000;
       this.stompClient.heartbeatOutgoing = 10000;
 
       // Connect with JWT in headers
@@ -84,10 +178,17 @@ class WebRTCWebSocketClient {
         Authorization: `Bearer ${token}`,
       };
 
+      console.log('🔐 Connecting with JWT token, headers:', { Authorization: 'Bearer [REDACTED]' });
       this.stompClient.connect(
         connectHeaders,
-        (frame) => this.onConnectSuccess(frame),
-        (error) => this.onConnectError(error)
+        (frame) => {
+          console.log('✅ WebSocket CONNECT successful, frame:', frame);
+          this.onConnectSuccess(frame);
+        },
+        (error) => {
+          console.error('❌ WebSocket CONNECT error:', error);
+          this.onConnectError(error);
+        }
       );
     } catch (error) {
       console.error('❌ Failed to create WebSocket connection:', error);
@@ -135,52 +236,80 @@ class WebRTCWebSocketClient {
    * Subscribe to signaling messages (private user queue)
    */
   subscribeToSignaling() {
-    if (!this.stompClient || !this.roomId) return;
+    if (!this.stompClient || !this.roomId) {
+      console.error('❌ Cannot subscribe: stompClient or roomId missing');
+      return;
+    }
 
     const destination = `/user/webrtc/${this.roomId}/signal`;
     console.log('📡 Subscribing to signaling:', destination);
 
-    this.signalSubscription = this.stompClient.subscribe(
-      destination,
-      (message) => {
-        try {
-          const signal = JSON.parse(message.body);
-          console.log('📨 Signal received:', signal.type, signal);
+    try {
+      this.signalSubscription = this.stompClient.subscribe(
+        destination,
+        (message) => {
+          console.log('✅ Signal subscription message received');
+          try {
+            const signal = JSON.parse(message.body);
+            console.log('📨 Signal received:', signal.type, signal);
 
-          if (this.onSignalCallback) {
-            this.onSignalCallback(signal);
+            if (this.onSignalCallback) {
+              this.onSignalCallback(signal);
+            }
+          } catch (error) {
+            console.error('❌ Failed to parse signal message:', error);
           }
-        } catch (error) {
-          console.error('❌ Failed to parse signal message:', error);
+        },
+        (error) => {
+          console.error('❌ Signal subscription error:', error);
+          this.handleError(error);
         }
-      }
-    );
+      );
+      console.log('✅ Signal subscription created:', destination);
+    } catch (error) {
+      console.error('❌ Failed to subscribe to signaling:', error);
+      this.handleError(error);
+    }
   }
 
   /**
    * Subscribe to presence events (shared topic)
    */
   subscribeToPresence() {
-    if (!this.stompClient || !this.roomId) return;
+    if (!this.stompClient || !this.roomId) {
+      console.error('❌ Cannot subscribe: stompClient or roomId missing');
+      return;
+    }
 
     const destination = `/topic/consultations/${this.roomId}/presence`;
     console.log('📡 Subscribing to presence:', destination);
 
-    this.presenceSubscription = this.stompClient.subscribe(
-      destination,
-      (message) => {
-        try {
-          const event = JSON.parse(message.body);
-          console.log('👥 Presence event:', event.eventType, event);
+    try {
+      this.presenceSubscription = this.stompClient.subscribe(
+        destination,
+        (message) => {
+          console.log('✅ Presence subscription message received');
+          try {
+            const event = JSON.parse(message.body);
+            console.log('👥 Presence event:', event.eventType, event);
 
-          if (this.onPresenceCallback) {
-            this.onPresenceCallback(event);
+            if (this.onPresenceCallback) {
+              this.onPresenceCallback(event);
+            }
+          } catch (error) {
+            console.error('❌ Failed to parse presence event:', error);
           }
-        } catch (error) {
-          console.error('❌ Failed to parse presence event:', error);
+        },
+        (error) => {
+          console.error('❌ Presence subscription error:', error);
+          this.handleError(error);
         }
-      }
-    );
+      );
+      console.log('✅ Presence subscription created:', destination);
+    } catch (error) {
+      console.error('❌ Failed to subscribe to presence:', error);
+      this.handleError(error);
+    }
   }
 
   /**

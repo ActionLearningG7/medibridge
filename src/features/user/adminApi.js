@@ -28,9 +28,9 @@ export const adminApi = baseApi.injectEndpoints({
       providesTags: (result) =>
         result
           ? [
-              ...result.map(({ id }) => ({ type: 'Admin', id })),
-              { type: 'Admin', id: 'LIST' },
-            ]
+            ...result.map(({ id }) => ({ type: 'Admin', id })),
+            { type: 'Admin', id: 'LIST' },
+          ]
           : [{ type: 'Admin', id: 'LIST' }],
     }),
 
@@ -141,6 +141,10 @@ export const adminApi = baseApi.injectEndpoints({
      * DELETE /api/v1/admin/{userId}
      * Soft delete admin profile (SUPER_ADMIN role)
      */
+    /**
+     * DELETE /api/v1/admin/{userId}
+     * Soft delete admin profile (SUPER_ADMIN role)
+     */
     deleteAdmin: builder.mutation({
       query: (userId) => ({
         url: `/api/v1/admin/${userId}`,
@@ -149,6 +153,133 @@ export const adminApi = baseApi.injectEndpoints({
       invalidatesTags: (result, error, userId) => [
         { type: 'Admin', id: userId },
         { type: 'Admin', id: 'LIST' },
+      ],
+    }),
+
+    /**
+     * GET /api/v1/organization/address
+     * Get hospital address
+     */
+    getHospitalAddress: builder.query({
+      query: () => '/api/v1/organization/address',
+      transformResponse: (response) => response?.data || response,
+      providesTags: ['Organization'],
+    }),
+
+    /**
+     * PUT /api/v1/organization/address
+     * Update hospital address (ADMIN only)
+     */
+    updateHospitalAddress: builder.mutation({
+      query: (addressData) => ({
+        url: '/api/v1/organization/address',
+        method: 'PUT',
+        body: addressData,
+      }),
+      invalidatesTags: ['Organization'],
+    }),
+
+    /**
+     * GET /api/v1/admin/queues
+     * Get all active queues for today with statistics
+     */
+    getAllActiveQueues: builder.query({
+      query: () => '/api/v1/admin/queues',
+      transformResponse: (response) => response?.data || response,
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.map(({ id }) => ({ type: 'Queue', id })),
+              { type: 'Queue', id: 'LIST' },
+            ]
+          : [{ type: 'Queue', id: 'LIST' }],
+    }),
+
+    /**
+     * GET /api/v1/admin/queues/{queueId}
+     * Get specific queue with detailed statistics
+     */
+    getQueueDetails: builder.query({
+      query: (queueId) => `/api/v1/admin/queues/${queueId}`,
+      transformResponse: (response) => response?.data || response,
+      providesTags: (result, error, queueId) => [{ type: 'Queue', id: queueId }],
+    }),
+
+    /**
+     * GET /api/v1/admin/queues/statistics
+     * Get aggregate queue statistics
+     */
+    getQueueStatistics: builder.query({
+      query: () => '/api/v1/admin/queues/statistics',
+      transformResponse: (response) => response?.data || response,
+      providesTags: ['QueueStats'],
+    }),
+
+    /**
+     * GET /api/v1/admin/queues/{queueId}/entries
+     * Get all entries (patients) in a queue
+     */
+    getQueueEntries: builder.query({
+      query: (queueId) => `/api/v1/admin/queues/${queueId}/entries`,
+      transformResponse: (response) => response?.data || response,
+      providesTags: (result, error, queueId) => [{ type: 'QueueEntry', id: queueId }],
+    }),
+
+    /**
+     * GET /api/v1/admin/queues/{queueId}/waiting
+     * Get waiting entries (patients in queue)
+     */
+    getWaitingEntries: builder.query({
+      query: (queueId) => `/api/v1/admin/queues/${queueId}/waiting`,
+      transformResponse: (response) => response?.data || response,
+      providesTags: (result, error, queueId) => [{ type: 'QueueEntry', id: queueId }],
+    }),
+
+    /**
+     * POST /api/v1/admin/queues/{queueId}/pause
+     * Pause a queue
+     */
+    pauseQueue: builder.mutation({
+      query: (queueId) => ({
+        url: `/api/v1/admin/queues/${queueId}/pause`,
+        method: 'POST',
+      }),
+      invalidatesTags: (result, error, queueId) => [
+        { type: 'Queue', id: queueId },
+        { type: 'Queue', id: 'LIST' },
+        { type: 'QueueStats', id: 'LIST' },
+      ],
+    }),
+
+    /**
+     * POST /api/v1/admin/queues/{queueId}/resume
+     * Resume a paused queue
+     */
+    resumeQueue: builder.mutation({
+      query: (queueId) => ({
+        url: `/api/v1/admin/queues/${queueId}/resume`,
+        method: 'POST',
+      }),
+      invalidatesTags: (result, error, queueId) => [
+        { type: 'Queue', id: queueId },
+        { type: 'Queue', id: 'LIST' },
+        { type: 'QueueStats', id: 'LIST' },
+      ],
+    }),
+
+    /**
+     * POST /api/v1/admin/queues/{queueId}/close
+     * Close a queue
+     */
+    closeQueue: builder.mutation({
+      query: (queueId) => ({
+        url: `/api/v1/admin/queues/${queueId}/close`,
+        method: 'POST',
+      }),
+      invalidatesTags: (result, error, queueId) => [
+        { type: 'Queue', id: queueId },
+        { type: 'Queue', id: 'LIST' },
+        { type: 'QueueStats', id: 'LIST' },
       ],
     }),
   }),
@@ -167,6 +298,16 @@ export const {
   useGetAllDoctorsAdminQuery,
   useGetAllPhlebotomistsQuery,
   useDeleteAdminMutation,
+  useGetHospitalAddressQuery,
+  useUpdateHospitalAddressMutation,
+  useGetAllActiveQueuesQuery,
+  useGetQueueDetailsQuery,
+  useGetQueueStatisticsQuery,
+  useGetQueueEntriesQuery,
+  useGetWaitingEntriesQuery,
+  usePauseQueueMutation,
+  useResumeQueueMutation,
+  useCloseQueueMutation,
 } = adminApi;
 
 export default adminApi;

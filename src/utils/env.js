@@ -7,15 +7,21 @@ export const env = {
   // API URLs
   apiGateway: process.env.REACT_APP_API_GATEWAY_URL || 'http://localhost:8080',
   userService: process.env.REACT_APP_USER_SERVICE_BASE_URL || 'http://localhost:8081',
-  appointmentService: process.env.REACT_APP_APPOINTMENT_SERVICE_BASE_URL || 'http://localhost:8082',
+  appointmentService: process.env.REACT_APP_APPOINTMENT_SERVICE_BASE_URL || 'http://localhost:8080',
   prescriptionService: process.env.REACT_APP_PRESCRIPTION_SERVICE_BASE_URL || 'http://localhost:8083',
   labService: process.env.REACT_APP_LAB_SERVICE_BASE_URL || 'http://localhost:8084',
   reportsService: process.env.REACT_APP_REPORTS_SERVICE_BASE_URL || 'http://localhost:8085',
   sosService: process.env.REACT_APP_SOS_AMBULANCE_SERVICE_BASE_URL || 'http://localhost:8086',
 
   // WebSocket URLs
-  appointmentWs: process.env.REACT_APP_APPOINTMENT_WS_URL || 'ws://localhost:8082/ws',
+  appointmentWs: process.env.REACT_APP_APPOINTMENT_WS_URL || 'ws://localhost:8080/ws',
   sosWs: process.env.REACT_APP_SOS_WS_URL || 'ws://localhost:8086/ws',
+
+  // WebRTC ICE Servers (STUN/TURN)
+  stunUrl: process.env.REACT_APP_STUN_URL || 'stun:stun.l.google.com:19302',
+  turnUrl: process.env.REACT_APP_TURN_URL || null,
+  turnUsername: process.env.REACT_APP_TURN_USERNAME || null,
+  turnCredential: process.env.REACT_APP_TURN_CREDENTIAL || null,
 
   // App Config
   appName: process.env.REACT_APP_NAME || 'MediBridge',

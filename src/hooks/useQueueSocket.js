@@ -22,6 +22,7 @@ import wsClient from '../features/appointment/ws/wsClient';
  */
 export const usePatientQueueSocket = (refetchCallback) => {
   const token = useSelector(selectAccessToken);
+  const isInitialized = useSelector((state) => state.auth?.initialized);
   const [isConnected, setIsConnected] = useState(false);
   const [isPolling, setIsPolling] = useState(false);
   const subscriptionIdRef = useRef(null);
@@ -31,7 +32,7 @@ export const usePatientQueueSocket = (refetchCallback) => {
   const startPolling = useCallback(() => {
     if (isPolling || pollingIntervalRef.current) return;
 
-    console.log('[usePatientQueueSocket] Starting polling fallback');
+    console.log('[usePatientQueueSocket] Starting polling fallback (no WebSocket)');
     setIsPolling(true);
 
     // Poll every 15 seconds
@@ -68,8 +69,16 @@ export const usePatientQueueSocket = (refetchCallback) => {
 
   // Setup WebSocket connection and subscription
   useEffect(() => {
+    // Wait for auth to be initialized
+    if (!isInitialized) {
+      console.log('[usePatientQueueSocket] Waiting for auth initialization...');
+      return;
+    }
+
+    // Check if token is available
     if (!token) {
-      console.log('[usePatientQueueSocket] No token available');
+      console.log('[usePatientQueueSocket] No token available, using polling only');
+      startPolling();
       return;
     }
 
@@ -78,6 +87,7 @@ export const usePatientQueueSocket = (refetchCallback) => {
     const setupWebSocket = async () => {
       try {
         // Connect to WebSocket
+        console.log('[usePatientQueueSocket] Connecting to WebSocket...');
         await wsClient.connect(token);
 
         if (!mounted) return;
@@ -133,7 +143,7 @@ export const usePatientQueueSocket = (refetchCallback) => {
       unregisterConnect();
       unregisterDisconnect();
     };
-  }, [token, handleMessage, startPolling, stopPolling]);
+  }, [token, isInitialized, handleMessage, startPolling, stopPolling]);
 
   return {
     isConnected,
@@ -149,6 +159,7 @@ export const usePatientQueueSocket = (refetchCallback) => {
  */
 export const useDoctorQueueSocket = (queueId, refetchCallback) => {
   const token = useSelector(selectAccessToken);
+  const isInitialized = useSelector((state) => state.auth?.initialized);
   const [isConnected, setIsConnected] = useState(false);
   const [isPolling, setIsPolling] = useState(false);
   const subscriptionIdRef = useRef(null);
@@ -158,7 +169,7 @@ export const useDoctorQueueSocket = (queueId, refetchCallback) => {
   const startPolling = useCallback(() => {
     if (isPolling || pollingIntervalRef.current) return;
 
-    console.log('[useDoctorQueueSocket] Starting polling fallback');
+    console.log('[useDoctorQueueSocket] Starting polling fallback (no WebSocket)');
     setIsPolling(true);
 
     // Poll every 10 seconds for doctors (more frequent)
@@ -195,8 +206,15 @@ export const useDoctorQueueSocket = (queueId, refetchCallback) => {
 
   // Setup WebSocket connection and subscription
   useEffect(() => {
+    // Wait for auth to be initialized
+    if (!isInitialized) {
+      console.log('[useDoctorQueueSocket] Waiting for auth initialization...');
+      return;
+    }
+
     if (!token || !queueId) {
-      console.log('[useDoctorQueueSocket] Missing token or queueId');
+      console.log('[useDoctorQueueSocket] Missing token or queueId, using polling only');
+      startPolling();
       return;
     }
 
@@ -205,6 +223,7 @@ export const useDoctorQueueSocket = (queueId, refetchCallback) => {
     const setupWebSocket = async () => {
       try {
         // Connect to WebSocket
+        console.log('[useDoctorQueueSocket] Connecting to WebSocket...');
         await wsClient.connect(token);
 
         if (!mounted) return;
@@ -261,7 +280,7 @@ export const useDoctorQueueSocket = (queueId, refetchCallback) => {
       unregisterConnect();
       unregisterDisconnect();
     };
-  }, [token, queueId, handleMessage, startPolling, stopPolling]);
+  }, [token, queueId, isInitialized, handleMessage, startPolling, stopPolling]);
 
   return {
     isConnected,
@@ -276,10 +295,17 @@ export const useDoctorQueueSocket = (queueId, refetchCallback) => {
  */
 export const useWebSocketTopic = (topic, callback, enabled = true) => {
   const token = useSelector(selectAccessToken);
+  const isInitialized = useSelector((state) => state.auth?.initialized);
   const [isConnected, setIsConnected] = useState(false);
   const subscriptionIdRef = useRef(null);
 
   useEffect(() => {
+    // Wait for auth initialization
+    if (!isInitialized) {
+      console.log('[useWebSocketTopic] Waiting for auth initialization...');
+      return;
+    }
+
     if (!token || !enabled || !topic) {
       return;
     }
@@ -327,7 +353,7 @@ export const useWebSocketTopic = (topic, callback, enabled = true) => {
       unregisterConnect();
       unregisterDisconnect();
     };
-  }, [token, topic, callback, enabled]);
+  }, [token, topic, callback, enabled, isInitialized]);
 
   return {
     isConnected,

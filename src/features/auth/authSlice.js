@@ -149,6 +149,7 @@ export const {
 
 // Selectors
 export const selectCurrentUser = (state) => state.auth.user;
+export const selectUser = (state) => state.auth.user; // Alias for selectCurrentUser
 export const selectAccessToken = (state) => state.auth.accessToken;
 export const selectRefreshToken = (state) => state.auth.refreshToken;
 export const selectIsAuthenticated = (state) => state.auth.isAuthenticated;

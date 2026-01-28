@@ -7,6 +7,7 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   useJoinQueueMutation,
+  useLeaveQueueMutation,
   useGetMyActiveQueueQuery,
   useGetMyAppointmentsQuery,
 } from '../../features/appointment/appointmentApi';
@@ -81,10 +82,24 @@ const PatientQueue = () => {
     }
   };
 
-  const handleLeaveQueue = () => {
-    // Note: No leave endpoint exists in backend
-    // This is a placeholder for when it's implemented
-    showToast.info('Leave queue feature coming soon');
+  // Leave queue mutation
+  const [leaveQueue, { isLoading: isLeaving }] = useLeaveQueueMutation();
+
+  const handleLeaveQueue = async () => {
+    if (!activeQueue?.id) return;
+
+    // Confirm before leaving
+    if (!window.confirm('Are you sure you want to leave the queue? You will lose your spot.')) {
+      return;
+    }
+
+    try {
+      await leaveQueue(activeQueue.id).unwrap();
+      showToast.success('You have left the queue');
+      refetch();
+    } catch (err) {
+      showToast.error(err?.data?.message || 'Failed to leave queue');
+    }
   };
 
   const handleJoinVideoConsultation = () => {

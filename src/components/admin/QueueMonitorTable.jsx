@@ -3,10 +3,18 @@
  * Displays today's queues with doctor and patient information
  */
 
-import { Users, Clock, CheckCircle, AlertCircle, Eye } from 'lucide-react';
+import { Users, Clock, CheckCircle, AlertCircle, Eye, Pause, Play, X } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
-const QueueMonitorTable = ({ queues = [], onViewDetails, isLoading = false }) => {
+const QueueMonitorTable = ({
+  queues = [],
+  onViewDetails,
+  onPauseQueue,
+  onResumeQueue,
+  onCloseQueue,
+  isLoading = false,
+  isLoadingAction = false,
+}) => {
   const getStatusBadge = (status) => {
     const badges = {
       OPEN: 'bg-green-100 text-green-800',
@@ -15,6 +23,9 @@ const QueueMonitorTable = ({ queues = [], onViewDetails, isLoading = false }) =>
     };
     return badges[status] || 'bg-gray-100 text-gray-800';
   };
+
+
+  console.log('Queues:', queues);
 
   const formatTime = (dateString) => {
     if (!dateString) return 'N/A';
@@ -138,13 +149,53 @@ const QueueMonitorTable = ({ queues = [], onViewDetails, isLoading = false }) =>
                   {formatTime(queue.openedAt)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <button
-                    onClick={() => onViewDetails(queue)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium text-primary-700 hover:bg-primary-50 transition-colors"
-                  >
-                    <Eye className="h-4 w-4" />
-                    <span>View Details</span>
-                  </button>
+                  <div className="flex items-center justify-end gap-2">
+                    {/* View Details Button */}
+                    <button
+                      onClick={() => onViewDetails(queue)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium text-primary-700 hover:bg-primary-50 transition-colors"
+                      title="View queue details"
+                    >
+                      <Eye className="h-4 w-4" />
+                      <span>Details</span>
+                    </button>
+
+                    {/* Pause/Resume Button */}
+                    {queue.status === 'OPEN' ? (
+                      <button
+                        onClick={() => onPauseQueue(queue.id)}
+                        disabled={isLoadingAction}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium text-yellow-700 hover:bg-yellow-50 transition-colors disabled:opacity-50"
+                        title="Pause queue"
+                      >
+                        <Pause className="h-4 w-4" />
+                        <span>Pause</span>
+                      </button>
+                    ) : queue.status === 'PAUSED' ? (
+                      <button
+                        onClick={() => onResumeQueue(queue.id)}
+                        disabled={isLoadingAction}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium text-green-700 hover:bg-green-50 transition-colors disabled:opacity-50"
+                        title="Resume queue"
+                      >
+                        <Play className="h-4 w-4" />
+                        <span>Resume</span>
+                      </button>
+                    ) : null}
+
+                    {/* Close Button */}
+                    {queue.status !== 'CLOSED' && (
+                      <button
+                        onClick={() => onCloseQueue(queue.id)}
+                        disabled={isLoadingAction}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium text-red-700 hover:bg-red-50 transition-colors disabled:opacity-50"
+                        title="Close queue"
+                      >
+                        <X className="h-4 w-4" />
+                        <span>Close</span>
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

@@ -2,27 +2,8 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import webrtcWsClient from '../features/appointment/ws/webrtcWsClient';
 
-/**
- * useWebrtcSocket Hook
- *
- * React hook for managing WebRTC WebSocket connection with edge case handling
- *
- * Features:
- * - Connection lifecycle management
- * - Signaling methods
- * - Connection status tracking
- * - Auto-reconnect with exponential backoff
- * - Reconnect banner display
- * - BYE signal forwarding
- *
- * Edge Cases Handled:
- * - WS disconnect → show banner + auto-reconnect
- * - Connection error → retry with exponential backoff
- * - BYE signal → forward to peer handler
- * - Do not auto-logout on FETCH_ERROR
- */
 const useWebrtcSocket = (roomId, options = {}) => {
-  const { token } = useSelector((state) => state.auth);
+  const { accessToken: token } = useSelector((state) => state.auth);
 
   // State
   const [isConnected, setIsConnected] = useState(false);
@@ -140,14 +121,6 @@ const useWebrtcSocket = (roomId, options = {}) => {
       setShowReconnectBanner(false);
     }
   }, [reconnectAttempts, MAX_RECONNECT_ATTEMPTS, getReconnectDelay]);
-    console.log('🔌 [useWebrtcSocket] Disconnected');
-    setIsConnected(false);
-    setConnectionStatus('disconnected');
-
-    if (onDisconnectedRef.current) {
-      onDisconnectedRef.current();
-    }
-  }, []);
 
   /**
    * Handle error - DO NOT auto logout on FETCH_ERROR
@@ -183,8 +156,18 @@ const useWebrtcSocket = (roomId, options = {}) => {
     }
 
     console.log('🔄 [useWebrtcSocket] Attempting to reconnect...');
-    connect();
-  }, [roomId, token]);
+    // Note: We use inline connect logic here to avoid dependency issues
+    setConnectionStatus('connecting');
+    setError(null);
+
+    webrtcWsClient.connect(roomId, token, {
+      onSignal: handleSignal,
+      onPresence: handlePresence,
+      onConnected: handleConnected,
+      onDisconnected: handleDisconnected,
+      onError: handleError,
+    });
+  }, [roomId, token, handleSignal, handlePresence, handleConnected, handleDisconnected, handleError]);
 
   /**
    * Connect to WebSocket
@@ -268,8 +251,20 @@ const useWebrtcSocket = (roomId, options = {}) => {
    * Cleanup on unmount or navigation
    */
   useEffect(() => {
+    console.log('📊 [useWebrtcSocket] useEffect triggered:', {
+      roomId,
+      hasToken: !!token,
+      autoConnect: options.autoConnect,
+      isConnected,
+    });
+
     if (roomId && token && options.autoConnect !== false) {
+      console.log('🔌 [useWebrtcSocket] Auto-connecting with roomId:', roomId);
       connect();
+    } else {
+      if (!roomId) console.warn('⚠️ [useWebrtcSocket] No roomId');
+      if (!token) console.warn('⚠️ [useWebrtcSocket] No token');
+      if (options.autoConnect === false) console.warn('⚠️ [useWebrtcSocket] autoConnect disabled');
     }
 
     // Cleanup on unmount or when roomId changes
@@ -282,7 +277,7 @@ const useWebrtcSocket = (roomId, options = {}) => {
       }
       console.log('🧹 [useWebrtcSocket] Cleanup on unmount');
     };
-  }, [roomId, token, connect, disconnect]); // Include connect/disconnect now
+  }, [roomId, token]); // Only depend on roomId and token, not connect/disconnect
 
   return {
     // State
