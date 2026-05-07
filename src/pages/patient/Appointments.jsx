@@ -3,97 +3,99 @@
  * Create appointments, view list, and see details
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   useGetMyAppointmentsQuery,
   useCreateAppointmentMutation,
   useGetAppointmentByIdQuery,
 } from '../../features/appointment/appointmentApi';
-import { useGetVerifiedDoctorsQuery, useGetDoctorByIdQuery } from '../../features/user/doctorApi';
+import { useGetVerifiedDoctorsQuery } from '../../features/user/doctorApi';
 import { useToast } from '../../components/feedback/ToastProvider';
 import { SkeletonStats, SkeletonList } from '../../components/feedback/Skeleton';
 import AppointmentForm from '../../components/appointment/AppointmentForm';
 import AppointmentList from '../../components/appointment/AppointmentList';
 import AppointmentDetailModal from '../../components/appointment/AppointmentDetailModal';
+import { Modal } from '../../ui';
+import { Calendar, Plus, Clock, CheckCircle, XCircle, Info } from 'lucide-react';
 
 const PatientAppointments = () => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedAppointmentId, setSelectedAppointmentId] = useState(null);
+  const [listPollInterval, setListPollInterval] = useState(0);
+  const navigate = useNavigate();
   const { showToast } = useToast();
 
   // Queries
-  const { data: rawAppointments, isLoading, error, refetch } = useGetMyAppointmentsQuery();
+  const { data: rawAppointments, isLoading, error, refetch } = useGetMyAppointmentsQuery(undefined, {
+    pollingInterval: listPollInterval
+  });
   const { data: doctors, isLoading: isLoadingDoctors } = useGetVerifiedDoctorsQuery();
-
-  // Debug logging
-  console.log('📋 Raw appointments from API:', rawAppointments);
 
   // Transform appointments to include doctor details
   const appointments = useMemo(() => {
-    if (!rawAppointments || !Array.isArray(rawAppointments)) {
-      console.log('⚠️ No appointments or invalid format');
-      return [];
-    }
+    if (!rawAppointments || !Array.isArray(rawAppointments)) return [];
 
-    console.log('🔄 Transforming appointments...');
-
-    // Transform each appointment to match frontend expectations
     return rawAppointments.map(apt => {
-      // Find doctor from the verified doctors list
       const doctor = doctors?.find(d => d.userId === apt.doctorId || d.id === apt.doctorId);
-
-      console.log('📝 Appointment:', {
-        id: apt.id,
-        doctorId: apt.doctorId,
-        foundDoctor: !!doctor,
-        doctorName: doctor ? `${doctor.firstName} ${doctor.lastName}` : 'Unknown'
-      });
-
       return {
-        // Keep original fields
         ...apt,
-        // Add frontend-expected fields (map backend fields to frontend)
-        date: apt.appointmentDate, // Backend: appointmentDate -> Frontend: date
-        reason: apt.reasonForVisit, // Backend: reasonForVisit -> Frontend: reason
-        // Add doctor details
-        doctorName: doctor ? `Dr. ${doctor.firstName} ${doctor.lastName}` : 'Doctor',
-        doctorSpecialization: doctor?.specialization || 'General',
+        date: apt.appointmentDate,
+        reason: apt.reasonForVisit,
+        doctorName: doctor ? `Dr. ${doctor.firstName} ${doctor.lastName}` : 'Expert Physician',
+        doctorSpecialization: doctor?.specialization || 'Specialist',
         doctor: doctor || null,
       };
     });
   }, [rawAppointments, doctors]);
 
-  console.log('📋 Transformed appointments:', appointments);
+  // Handle list polling
+  useEffect(() => {
+    const hasPending = appointments?.some(a => a.status === 'PAYMENT_PENDING');
+    if (hasPending) {
+      setListPollInterval(3000);
+      const timer = setTimeout(() => setListPollInterval(0), 45000);
+      return () => clearTimeout(timer);
+    } else {
+      setListPollInterval(0);
+    }
+  }, [appointments]);
 
   // Selected appointment details
+  const [detailPollInterval, setDetailPollInterval] = useState(0);
+
   const { data: rawSelectedAppointment, isLoading: isLoadingDetails } = useGetAppointmentByIdQuery(
     selectedAppointmentId,
-    { skip: !selectedAppointmentId }
+    {
+      skip: !selectedAppointmentId,
+      pollingInterval: detailPollInterval
+    }
   );
 
-  // Transform selected appointment to include doctor details
+  useEffect(() => {
+    if (rawSelectedAppointment?.status === 'PAYMENT_PENDING') {
+      setDetailPollInterval(3000);
+      const t = setTimeout(() => setDetailPollInterval(0), 30000);
+      return () => clearTimeout(t);
+    } else {
+      setDetailPollInterval(0);
+    }
+  }, [rawSelectedAppointment?.status]);
+
   const selectedAppointment = useMemo(() => {
     if (!rawSelectedAppointment) return null;
 
-    // Find doctor from the verified doctors list
     const doctor = doctors?.find(d =>
       d.userId === rawSelectedAppointment.doctorId ||
       d.id === rawSelectedAppointment.doctorId
     );
 
-    console.log('🔍 Selected appointment transformation:', {
-      appointmentId: rawSelectedAppointment.id,
-      doctorId: rawSelectedAppointment.doctorId,
-      foundDoctor: !!doctor,
-      doctorName: doctor ? `${doctor.firstName} ${doctor.lastName}` : 'Unknown'
-    });
-
     return {
       ...rawSelectedAppointment,
       date: rawSelectedAppointment.appointmentDate,
       reason: rawSelectedAppointment.reasonForVisit,
-      doctorName: doctor ? `Dr. ${doctor.firstName} ${doctor.lastName}` : 'Doctor',
-      doctorSpecialization: doctor?.specialization || 'General',
+      doctorName: doctor ? `Dr. ${doctor.firstName} ${doctor.lastName}` : 'Expert Physician',
+      doctorSpecialization: doctor?.specialization || 'Specialist',
       doctor: doctor || null,
     };
   }, [rawSelectedAppointment, doctors]);
@@ -101,261 +103,168 @@ const PatientAppointments = () => {
   // Mutations
   const [createAppointment, { isLoading: isCreating }] = useCreateAppointmentMutation();
 
-  const handleCreateClick = () => {
-    setShowCreateForm(true);
-  };
+  const handleCreateClick = () => setShowCreateForm(true);
 
   const handleCreateSuccess = async (formData) => {
     try {
-      console.log('Creating appointment with form data:', formData);
-
-      // Transform form data to match backend expectations
       const appointmentData = {
-        doctorId: formData.doctorId, // UUID string
-        date: formData.date.split('T')[0], // Convert "2026-01-25T14:30" to "2026-01-25"
+        doctorId: formData.doctorId,
+        date: formData.date.split('T')[0],
         reason: formData.reason,
-        appointmentType: 'VIRTUAL', // Default to VIRTUAL
+        appointmentType: 'VIRTUAL',
       };
 
-      console.log('Transformed appointment data:', appointmentData);
-
-      // Call the createAppointment mutation
       const result = await createAppointment(appointmentData).unwrap();
-
-      console.log('Appointment created successfully:', result);
-
-      // Close form and refresh list
       setShowCreateForm(false);
       refetch();
 
-      // Show success message
-      showToast.success('Appointment booked successfully!');
-    } catch (error) {
-      console.error('Failed to create appointment:', error);
-
-      // Show specific error messages
-      if (error?.status === 401) {
-        showToast.error('Authentication failed. Please login again.');
-      } else if (error?.status === 400) {
-        showToast.error(error?.data?.message || 'Invalid appointment data. Please check your inputs.');
-      } else if (error?.status === 404) {
-        showToast.error('Doctor not found. Please select another doctor.');
-      } else if (error?.status === 409) {
-        showToast.error('This time slot is not available. Please choose another time.');
+      if (result.paymentRequired && result.checkoutUrl) {
+        showToast.info('Booking confirmed! Redirecting to secure payment...');
+        window.location.href = result.checkoutUrl;
+      } else if (result.invoiceId) {
+        showToast.info('Booking confirmed! Preparing checkout...');
+        setTimeout(() => {
+          navigate(`/payments/checkout/${result.invoiceId}?returnTo=/patient/appointments`);
+        }, 1200);
       } else {
-        showToast.error(error?.data?.message || error?.message || 'Failed to book appointment. Please try again.');
+        showToast.success('Appointment booked successfully!');
       }
+    } catch (error) {
+      showToast.error(error?.data?.message || 'Failed to book appointment. Please try again.');
     }
   };
 
-  const handleCreateCancel = () => {
-    setShowCreateForm(false);
-  };
+  const handleCreateCancel = () => setShowCreateForm(false);
+  const handleViewDetails = (id) => setSelectedAppointmentId(id);
+  const handleCloseDetails = () => setSelectedAppointmentId(null);
 
-  const handleViewDetails = (appointmentId) => {
-    setSelectedAppointmentId(appointmentId);
-  };
-
-  const handleCloseDetails = () => {
-    setSelectedAppointmentId(null);
-  };
-
-
-  // Calculate statistics based on backend status values
   const stats = {
     total: appointments?.length || 0,
-    // Backend statuses: REQUESTED, QUEUED, IN_PROGRESS, CALLED, COMPLETED, CANCELLED, NO_SHOW
-    upcoming: appointments?.filter(a =>
-      a.status === 'REQUESTED' ||
-      a.status === 'QUEUED' ||
-      a.status === 'CALLED' ||
-      a.status === 'SCHEDULED' ||
-      a.status === 'CONFIRMED'
-    )?.length || 0,
+    upcoming: appointments?.filter(a => ['REQUESTED', 'QUEUED', 'CALLED', 'SCHEDULED', 'CONFIRMED'].includes(a.status))?.length || 0,
     completed: appointments?.filter(a => a.status === 'COMPLETED')?.length || 0,
-    cancelled: appointments?.filter(a =>
-      a.status === 'CANCELLED' ||
-      a.status === 'NO_SHOW'
-    )?.length || 0,
+    cancelled: appointments?.filter(a => ['CANCELLED', 'NO_SHOW'].includes(a.status))?.length || 0,
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 py-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">My Appointments</h1>
-              <p className="mt-2 text-sm text-gray-600">
-                Book appointments and manage your consultations
-              </p>
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
+          <div>
+            <div className="flex items-center gap-2 text-primary-600 font-bold text-sm uppercase tracking-wider mb-2">
+              <Calendar className="w-4 h-4" />
+              Medical Concierge
             </div>
-            <button
-              onClick={handleCreateClick}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-            >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Book Appointment
+            <h1 className="text-4xl font-black text-gray-900 tracking-tight">My Appointments</h1>
+            <p className="mt-2 text-gray-500 font-medium">Manage your consultations and professional medical bookings</p>
+          </div>
+          <button
+            onClick={handleCreateClick}
+            className="group flex items-center gap-2 px-6 py-3.5 bg-primary-600 text-white rounded-2xl font-bold shadow-xl shadow-primary-200 hover:bg-primary-700 hover:scale-105 active:scale-95 transition-all"
+          >
+            <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform" />
+            Book New Session
+          </button>
+        </div>
+
+        {/* Error State */}
+        {error && (
+          <div className="mb-8 bg-red-50 border-2 border-red-100 rounded-2xl p-5 flex items-center gap-4 animate-in fade-in slide-in-from-top-4">
+            <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-red-600 shadow-sm">
+              <Info className="w-6 h-6" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-bold text-red-900 leading-tight">Syncing Issue</h3>
+              <p className="text-sm text-red-700 font-medium">{error?.data?.message || 'Unable to fetch your records at this moment.'}</p>
+            </div>
+            <button onClick={() => refetch()} className="px-4 py-2 bg-red-600 text-white rounded-xl text-xs font-bold hover:bg-red-700 shadow-lg shadow-red-200">
+              Retry Sync
             </button>
           </div>
-        </div>
-
-        {/* Error Display */}
-        {error && (
-          <div className="mb-8 bg-red-50 border border-red-200 rounded-lg p-4">
-            <div className="flex items-center">
-              <svg className="h-5 w-5 text-red-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <div>
-                <h3 className="text-sm font-medium text-red-800">Failed to load appointments</h3>
-                <p className="text-sm text-red-700 mt-1">
-                  {error?.status === 401
-                    ? 'Please login again to view your appointments.'
-                    : error?.data?.message || error?.message || 'Unable to fetch appointments. Please try again.'}
-                </p>
-              </div>
-              <button
-                onClick={() => refetch()}
-                className="ml-auto px-3 py-1 bg-red-100 text-red-700 text-sm rounded hover:bg-red-200"
-              >
-                Retry
-              </button>
-            </div>
-          </div>
         )}
 
-        {/* Statistics Cards */}
-        {isLoading ? (
-          <SkeletonStats count={4} className="mb-8" />
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 bg-blue-100 rounded-md p-3">
-                <svg className="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-12">
+          {[
+            { label: 'Total Visits', value: stats.total, icon: Calendar, color: 'blue' },
+            { label: 'Upcoming', value: stats.upcoming, icon: Clock, color: 'amber' },
+            { label: 'Completed', value: stats.completed, icon: CheckCircle, color: 'green' },
+            { label: 'Cancelled', value: stats.cancelled, icon: XCircle, color: 'red' }
+          ].map((stat, i) => (
+            <div key={i} className="bg-white p-5 sm:p-6 rounded-3xl border-2 border-gray-100 shadow-sm hover:shadow-md transition-all">
+              <div className={`w-12 h-12 rounded-2xl mb-4 flex items-center justify-center 
+                  ${stat.color === 'blue' ? 'bg-blue-50 text-blue-600' :
+                  stat.color === 'amber' ? 'bg-amber-50 text-amber-600' :
+                    stat.color === 'green' ? 'bg-green-50 text-green-600' :
+                      'bg-red-50 text-red-600'}`}>
+                <stat.icon className="w-6 h-6" />
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Total</p>
-                <p className="text-2xl font-semibold text-gray-900">{stats.total}</p>
-              </div>
+              <p className="text-[10px] sm:text-xs font-bold text-gray-400 uppercase tracking-widest">{stat.label}</p>
+              <p className="text-2xl sm:text-3xl font-black text-gray-900 mt-1">{stat.value}</p>
             </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 bg-green-100 rounded-md p-3">
-                <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Upcoming</p>
-                <p className="text-2xl font-semibold text-gray-900">{stats.upcoming}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 bg-purple-100 rounded-md p-3">
-                <svg className="h-6 w-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Completed</p>
-                <p className="text-2xl font-semibold text-gray-900">{stats.completed}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 bg-red-100 rounded-md p-3">
-                <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Cancelled</p>
-                <p className="text-2xl font-semibold text-gray-900">{stats.cancelled}</p>
-              </div>
-            </div>
-          </div>
+          ))}
         </div>
-        )}
 
-        {/* Appointments List */}
+        {/* Content Area */}
         {isLoading ? (
           <SkeletonList items={5} />
-        ) : appointments && appointments.length > 0 ? (
-          <AppointmentList
-            appointments={appointments}
-            onViewDetails={handleViewDetails}
-          />
+        ) : appointments.length > 0 ? (
+          <div className="animate-in fade-in slide-in-from-bottom-6 duration-500">
+            <AppointmentList
+              appointments={appointments}
+              onViewDetails={handleViewDetails}
+            />
+          </div>
         ) : (
-          <div className="bg-white shadow rounded-lg p-12 text-center">
-            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No appointments</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Get started by booking your first appointment
+          <div className="bg-white border-2 border-dashed border-gray-200 rounded-[2.5rem] p-16 text-center animate-in zoom-in-95 duration-500">
+            <div className="w-20 h-20 bg-gray-50 rounded-3xl flex items-center justify-center mx-auto mb-6 text-gray-300">
+              <Calendar className="w-10 h-10" />
+            </div>
+            <h3 className="text-2xl font-black text-gray-900 mb-2">No Appointments Yet</h3>
+            <p className="text-gray-500 font-medium max-w-xs mx-auto mb-8">
+              Your health journey starts here. Book your first consultation with our top-rated specialists.
             </p>
-            <div className="mt-6">
-              <button
-                onClick={handleCreateClick}
-                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700"
-              >
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                Book Appointment
-              </button>
-            </div>
+            <button
+              onClick={handleCreateClick}
+              className="inline-flex items-center gap-2 px-8 py-4 bg-primary-600 text-white rounded-2xl font-bold shadow-xl shadow-primary-200 hover:bg-primary-700 transition-all"
+            >
+              <Plus className="w-5 h-5" />
+              Start Booking
+            </button>
           </div>
         )}
 
-        {/* Create Appointment Modal */}
-        {showCreateForm && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Book New Appointment</h3>
-                <button
-                  onClick={handleCreateCancel}
-                  className="text-gray-400 hover:text-gray-500"
-                >
-                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              <AppointmentForm
-                doctors={doctors || []}
-                isLoadingDoctors={isLoadingDoctors}
-                onSuccess={handleCreateSuccess}
-                onCancel={handleCreateCancel}
-                isSubmitting={isCreating}
-              />
-            </div>
+        {/* Creation Overlay */}
+        <Modal
+          isOpen={showCreateForm}
+          onClose={handleCreateCancel}
+          title="Medical Consultation Booking"
+          size="2xl"
+        >
+          <div className="py-2">
+            <AppointmentForm
+              doctors={doctors || []}
+              isLoadingDoctors={isLoadingDoctors}
+              onSuccess={handleCreateSuccess}
+              onCancel={handleCreateCancel}
+              isSubmitting={isCreating}
+            />
           </div>
-        )}
+        </Modal>
 
-        {/* Appointment Detail Modal */}
-        {selectedAppointmentId && (
+        {/* Details Overlay */}
+        <Modal
+          isOpen={!!selectedAppointmentId}
+          onClose={handleCloseDetails}
+          title="Appointment Intelligence"
+          size="2xl"
+        >
           <AppointmentDetailModal
             appointment={selectedAppointment}
             isLoading={isLoadingDetails}
             onClose={handleCloseDetails}
           />
-        )}
+        </Modal>
       </div>
     </div>
   );

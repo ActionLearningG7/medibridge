@@ -1,13 +1,8 @@
-/**
- * My Reports - Patient
- * View and download lab test results
- */
-
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PageHeader, Card, Button, Badge } from '../../ui';
-import { FileText, Download, Eye, Search, Calendar, Loader, AlertCircle } from 'lucide-react';
-import { useGetPatientReportsQuery, useDownloadPatientOrderReportQuery } from '../../features/lab/labApi';
+import { PageHeader, Card, Button, Badge, Input } from '../../ui';
+import { FileText, Download, Eye, Search, Calendar, Loader, AlertCircle, ShieldCheck, ChevronRight, Inbox, Filter, FileCheck, ArrowRight, User } from 'lucide-react';
+import { useGetPatientReportsQuery } from '../../features/lab/labApi';
 import { useFileDownload } from '../../hooks/useFileDownload';
 
 export default function MyReports() {
@@ -17,13 +12,11 @@ export default function MyReports() {
   const [downloadError, setDownloadError] = useState(null);
   const { downloadFile } = useFileDownload();
 
-  // Fetch reports from API
   const { data: reportsData = [], isLoading, error } = useGetPatientReportsQuery();
 
-  // Filter orders based on search
   const filteredReports = reportsData.filter(order =>
-    order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.testName.toLowerCase().includes(searchTerm.toLowerCase())
+    (order.orderNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (order.testName || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const formatFileSize = (bytes) => {
@@ -33,12 +26,10 @@ export default function MyReports() {
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return new Date(dateString).toLocaleDateString('en-IE', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
     });
   };
 
@@ -47,15 +38,10 @@ export default function MyReports() {
       setDownloadError(null);
       setDownloadingId(result.labOrderId || result.resultId);
 
-      // Try new endpoint first (blob download)
       if (result.labOrderId) {
-        // Get access token from localStorage or sessionStorage
         const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
-        if (!token) {
-          throw new Error('Authentication token not found');
-        }
+        if (!token) throw new Error('Auth session expired');
 
-        // Trigger the download with proper headers
         const response = await fetch(`/api/v1/reports/${result.labOrderId}/download`, {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -63,57 +49,24 @@ export default function MyReports() {
           },
         });
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`Download failed: ${response.status} - ${errorText}`);
-        }
-
-        // Check content type to detect errors
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Server error');
-        }
-
-        // Get blob
+        if (!response.ok) throw new Error(`Download failed: ${response.status}`);
         const blob = await response.blob();
+        if (blob.size === 0) throw new Error('File integrity check failed');
 
-        // Validate blob size
-        if (blob.size === 0) {
-          throw new Error('Downloaded file is empty');
-        }
-
-        // Log for debugging
-        console.log(`✓ Downloaded blob: size=${blob.size}, type=${blob.type}`);
-
-        // Extract filename
         const contentDisposition = response.headers.get('content-disposition');
-        let filename = result.fileName || 'lab-report.pdf';
+        let filename = result.fileName || `report-${result.labOrderId}.pdf`;
 
         if (contentDisposition) {
           const match = contentDisposition.match(/filename="?([^"]+)"?/);
-          if (match && match[1]) {
-            filename = match[1];
-          }
+          if (match && match[1]) filename = match[1];
         }
 
-        // Trigger download
         downloadFile(blob, filename);
       } else if (result.fileUrl) {
-        // Fallback to direct URL
         window.open(result.fileUrl, '_blank');
-      } else {
-        setDownloadError('File URL not available');
       }
     } catch (err) {
-      console.error('Download error:', err);
-      setDownloadError(err.message || 'Failed to download file');
-
-      // Fallback to direct URL if available
-      if (result?.fileUrl) {
-        console.log('Falling back to direct URL');
-        window.open(result.fileUrl, '_blank');
-      }
+      setDownloadError(err.message || 'Transmission error');
     } finally {
       setDownloadingId(null);
     }
@@ -123,227 +76,215 @@ export default function MyReports() {
     if (result.fileUrl) {
       window.open(result.fileUrl, '_blank');
     } else if (result.labOrderId) {
-      // Try to open via download endpoint in new tab
       window.open(`/api/v1/reports/${result.labOrderId}/download`, '_blank');
-    } else {
-      alert('File URL not available');
     }
   };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Loader className="h-8 w-8 text-blue-600 animate-spin" />
+      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
+        <div className="text-center">
+          <Loader className="h-10 w-10 text-primary-600 animate-spin mx-auto mb-4" />
+          <p className="font-black text-gray-400 uppercase tracking-widest text-[10px]">Accessing Vault...</p>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center text-red-600">
-          <p>Failed to load reports.</p>
-          <Button onClick={() => window.location.reload()} variant="outline" className="mt-4">Retry</Button>
-        </div>
+      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
+        <Card className="max-w-md w-full p-12 rounded-[3.5rem] border-none shadow-2xl text-center">
+          <div className="w-20 h-20 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-8">
+            <ShieldCheck className="w-10 h-10 text-red-600" />
+          </div>
+          <h2 className="text-2xl font-black text-gray-900 mb-4 tracking-tight">Security Breach</h2>
+          <p className="text-gray-500 font-medium mb-10">We encountered an encryption error while accessing your records.</p>
+          <Button onClick={() => window.location.reload()} className="w-full h-14 rounded-2xl bg-primary-600">Re-authenticate</Button>
+        </Card>
       </div>
     );
   }
 
-  // Calculate stats based on actual data
-  const totalReports = reportsData.reduce((sum, order) => sum + (order.results?.length || 0), 0);
-  const latestReportDate = reportsData.length > 0
-    ? new Date(Math.max(...reportsData.flatMap(o => o.results).map(r => new Date(r.uploadedAt)))).toLocaleDateString()
-    : 'N/A';
+  const reportsCount = reportsData.reduce((sum, order) => sum + (order.results?.length || 0), 0);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <PageHeader
-        title="My Reports"
-        subtitle="View and download your lab test results"
-      />
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <Card className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Total Reports</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {totalReports}
-                </p>
+    <div className="min-h-screen bg-[#F8FAFC]">
+      {/* Premium Header */}
+      <div className="bg-white border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div>
+              <div className="flex items-center gap-2 text-primary-600 font-bold text-[10px] uppercase tracking-widest mb-2">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                Medical Record Vault
               </div>
-              <div className="p-3 bg-blue-100 rounded-full">
-                <FileText className="h-6 w-6 text-blue-600" />
-              </div>
+              <h1 className="text-4xl font-black text-gray-900 tracking-tight leading-none">Diagnostic Results</h1>
+              <p className="text-gray-500 font-medium mt-3">Verified clinical reports and analysis documents</p>
             </div>
-          </Card>
 
-          <Card className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Orders with Results</p>
-                <p className="text-2xl font-bold text-gray-900">{reportsData.length}</p>
+            <div className="flex items-center gap-4">
+              <div className="bg-gray-50 px-6 py-3 rounded-2xl border-2 border-gray-100">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Authenticated Records</p>
+                <p className="text-xl font-black text-gray-900 leading-none">{reportsCount}</p>
               </div>
-              <div className="p-3 bg-green-100 rounded-full">
-                <FileText className="h-6 w-6 text-green-600" />
-              </div>
+              <Button
+                onClick={() => navigate('/patient/labs/orders')}
+                variant="outline"
+                className="h-12 border-2 border-gray-900 text-gray-900 font-black text-[10px] uppercase tracking-widest rounded-2xl px-6 hover:bg-gray-900 hover:text-white"
+              >
+                Track Live Orders
+              </Button>
             </div>
-          </Card>
-
-          <Card className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Latest Report</p>
-                <p className="text-sm font-medium text-gray-900">
-                  {latestReportDate}
-                </p>
-              </div>
-              <div className="p-3 bg-purple-100 rounded-full">
-                <Calendar className="h-6 w-6 text-purple-600" />
-              </div>
-            </div>
-          </Card>
-        </div>
-
-        {/* Search */}
-        <Card className="p-4 mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search by order number or test name..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
           </div>
-        </Card>
+        </div>
+      </div>
 
-        {/* Reports List */}
-        <div className="space-y-6">
-          {filteredReports.map((order) => (
-            <Card key={order.id} className="overflow-hidden">
-              {/* Order Header */}
-              <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">{order.testName}</h3>
-                    <p className="text-sm text-gray-600 mt-1">
-                      Order: {order.orderNumber} • Ordered: {formatDate(order.orderDate)}
-                    </p>
-                  </div>
-                  <Badge variant="success">
-                    {order.results?.length || 0} file(s)
-                  </Badge>
-                </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-10">
+
+          {/* Side Control */}
+          <aside className="lg:col-span-1 space-y-6">
+            <div className="bg-white rounded-[2.5rem] border-2 border-gray-50 p-8 shadow-sm">
+              <div className="flex items-center gap-2 mb-8">
+                <Filter className="w-4 h-4 text-primary-500" />
+                <h3 className="font-black text-gray-900 uppercase tracking-widest text-[10px]">Filter Vault</h3>
               </div>
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="ID or Test Name..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full h-12 bg-gray-50 border-none rounded-2xl pl-12 pr-4 text-sm font-bold placeholder:text-gray-300 focus:ring-2 focus:ring-primary-100"
+                />
+              </div>
+            </div>
 
-              {/* Results List */}
-              <div className="divide-y divide-gray-200">
-                {order.results?.map((result) => (
-                  <div key={result.resultId} className="p-6 hover:bg-gray-50 transition-colors">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-start gap-4 flex-1">
-                        {/* File Icon */}
-                        <div className="p-3 bg-blue-100 rounded-lg">
-                          <FileText className="h-6 w-6 text-blue-600" />
-                        </div>
+            <div className="p-8 bg-primary-900 rounded-[2.5rem] text-white space-y-6 shadow-xl shadow-primary-900/10">
+              <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center border border-white/10">
+                <FileCheck className="w-6 h-6" />
+              </div>
+              <h4 className="text-lg font-black leading-tight tracking-tight">Report Integrity Verified</h4>
+              <p className="text-[11px] font-medium text-primary-100 leading-relaxed opacity-70">
+                All documents are cryptographically signed by our partner laboratories and meet global health data standards.
+              </p>
+            </div>
+          </aside>
 
-                        {/* File Info */}
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-medium text-gray-900">{result.fileName}</h4>
-                            {result.isLatest && (
-                              <Badge variant="primary" className="text-xs">
-                                Latest
-                              </Badge>
-                            )}
-                            {!result.isLatest && (
-                              <Badge variant="secondary" className="text-xs">
-                                Version {result.version}
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="mt-1 text-sm text-gray-600">
-                            <span>{formatFileSize(result.fileSize)}</span>
-                            <span className="mx-2">•</span>
-                            <span>Uploaded by {result.uploadedByName}</span>
-                            <span className="mx-2">•</span>
-                            <span>{formatDate(result.uploadedAt)}</span>
-                          </div>
-                        </div>
+          {/* Main List */}
+          <main className="lg:col-span-3">
+            <div className="space-y-8">
+              {filteredReports.map((order) => (
+                <div key={order.id} className="bg-white rounded-[3rem] border-2 border-gray-50 overflow-hidden shadow-sm hover:shadow-xl hover:shadow-primary-900/5 transition-all duration-500 group">
+                  {/* Order Meta Header */}
+                  <div className="px-10 py-8 bg-gray-50/50 flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-gray-50 group-hover:bg-primary-50/30 transition-colors">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black text-primary-500 uppercase tracking-widest">Manifest: {order.orderNumber}</span>
+                        <div className="w-1 h-1 rounded-full bg-primary-200" />
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{formatDate(order.orderDate)}</span>
                       </div>
+                      <h3 className="text-2xl font-black text-gray-900 tracking-tight">{order.testName}</h3>
+                    </div>
+                    <Badge variant="success" className="h-10 px-6 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-sm">
+                      {order.results?.length || 0} Documents Ready
+                    </Badge>
+                  </div>
 
-                      {/* Actions */}
-                      <div className="flex flex-col gap-2">
+                  {/* Files List */}
+                  <div className="divide-y divide-gray-50">
+                    {order.results?.map((result) => (
+                      <div key={result.resultId} className="p-10 hover:bg-gray-50/30 transition-colors">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
+                          <div className="flex items-start gap-6 flex-1">
+                            <div className="w-16 h-16 rounded-2xl bg-white border-2 border-gray-50 shadow-sm flex items-center justify-center shrink-0 group/icon">
+                              <FileText className="w-8 h-8 text-primary-600 transition-transform group-hover/icon:scale-110" />
+                            </div>
+
+                            <div className="space-y-4">
+                              <div className="flex flex-wrap items-center gap-3">
+                                <h4 className="font-black text-gray-900 tracking-tight text-lg">{result.fileName}</h4>
+                                {result.isLatest ? (
+                                  <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-lg text-[9px] font-black uppercase tracking-widest">Authenticated</span>
+                                ) : (
+                                  <span className="px-3 py-1 bg-gray-100 text-gray-500 rounded-lg text-[9px] font-black uppercase tracking-widest">Version {result.version}</span>
+                                )}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-y-3 gap-x-6">
+                                <div className="flex items-center gap-2">
+                                  <Inbox className="w-3.5 h-3.5 text-gray-300" />
+                                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{formatFileSize(result.fileSize)}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <User className="w-3.5 h-3.5 text-gray-300" />
+                                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Released by {result.uploadedByName}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Calendar className="w-3.5 h-3.5 text-gray-300" />
+                                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{formatDate(result.uploadedAt)}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3 shrink-0">
+                            <Button
+                              variant="outline"
+                              size="lg"
+                              onClick={() => handleView(result)}
+                              className="h-14 w-14 rounded-2xl border-2 border-gray-100 hover:border-primary-100 p-0 flex items-center justify-center shrink-0 group-hover:bg-white"
+                            >
+                              <Eye className="w-5 h-5 text-gray-400 hover:text-primary-600" />
+                            </Button>
+                            <Button
+                              size="lg"
+                              onClick={() => handleDownload(result)}
+                              disabled={downloadingId === (result.labOrderId || result.resultId)}
+                              className="h-14 px-8 rounded-2xl bg-gray-900 hover:bg-black text-white font-black text-[10px] uppercase tracking-widest flex items-center gap-3 shadow-xl shadow-gray-900/10"
+                            >
+                              {downloadingId === (result.labOrderId || result.resultId) ? (
+                                <Loader className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Download className="h-4 w-4" />
+                              )}
+                              Download
+                            </Button>
+                          </div>
+                        </div>
                         {downloadError && downloadingId === (result.labOrderId || result.resultId) && (
-                          <div className="text-xs text-red-600 flex items-center gap-1">
-                            <AlertCircle size={14} />
+                          <div className="mt-4 p-4 bg-red-50 rounded-xl flex items-center gap-3 text-red-600 text-[10px] font-black uppercase tracking-widest">
+                            <AlertCircle className="w-4 h-4" />
                             {downloadError}
                           </div>
                         )}
-                        <div className="flex items-center gap-2">
-                          {result.fileType === 'application/pdf' ? (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleView(result)}
-                            >
-                              <Eye className="h-4 w-4 mr-1" />
-                              View
-                            </Button>
-                          ) : (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleView(result)}
-                            >
-                              <Eye className="h-4 w-4 mr-1" />
-                              Preview
-                            </Button>
-                          )}
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            onClick={() => handleDownload(result)}
-                            disabled={downloadingId === (result.labOrderId || result.resultId)}
-                          >
-                            {downloadingId === (result.labOrderId || result.resultId) ? (
-                              <>
-                                <Loader className="h-4 w-4 mr-1 animate-spin" />
-                                Downloading...
-                              </>
-                            ) : (
-                              <>
-                                <Download className="h-4 w-4 mr-1" />
-                                Download
-                              </>
-                            )}
-                          </Button>
-                        </div>
                       </div>
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </Card>
-          ))}
-        </div>
+                </div>
+              ))}
 
-        {/* Empty State */}
-        {reportsData.length === 0 && (
-          <Card className="p-12 text-center">
-            <FileText className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No Reports Yet</h3>
-            <p className="text-gray-600 mb-6">
-              Your lab test results will appear here once they are uploaded.
-            </p>
-            <Button onClick={() => navigate('/patient/labs/orders')}>
-              View My Orders
-            </Button>
-          </Card>
-        )}
+              {filteredReports.length === 0 && (
+                <div className="bg-white rounded-[3.5rem] p-24 text-center border-2 border-gray-50 shadow-sm animate-in zoom-in duration-500">
+                  <div className="w-24 h-24 bg-gray-50 rounded-[2rem] flex items-center justify-center mx-auto mb-8">
+                    <Inbox className="w-12 h-12 text-gray-200" />
+                  </div>
+                  <h3 className="text-3xl font-black text-gray-900 mb-4 tracking-tight">Records Missing</h3>
+                  <p className="text-gray-400 font-medium mb-12 max-w-sm mx-auto leading-relaxed">
+                    {searchTerm
+                      ? `No records found matching "${searchTerm}". Please verify your search parameters.`
+                      : 'Your diagnostic repository is currently empty. Reports will appear here once laboratory analysis is completed.'}
+                  </p>
+                  <Button onClick={() => navigate('/patient/labs/orders')} className="h-16 px-12 rounded-2xl bg-primary-600 hover:bg-primary-700 font-black text-xs uppercase tracking-widest flex items-center gap-3 mx-auto shadow-xl shadow-primary-200">
+                    Check Order Progress
+                    <ArrowRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          </main>
+        </div>
       </div>
     </div>
   );

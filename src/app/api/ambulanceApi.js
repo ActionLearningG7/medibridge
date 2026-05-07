@@ -98,17 +98,67 @@ export const ambulanceApi = createApi({
     }),
 
     /**
-     * PATCH /api/v1/admin/ambulance-drivers/{id}/reset-credentials
+     * POST /api/v1/admin/ambulance-drivers/{id}/reset-credentials
      * Reset driver credentials
      */
     resetDriverCredentials: builder.mutation({
       query: (id) => ({
         url: `/api/v1/admin/ambulance-drivers/${id}/reset-credentials`,
+        method: 'POST',
+      }),
+      transformResponse: (response) => response?.data || response,
+      invalidatesTags: (result, error, id) => [
+        { type: API_TAGS.DRIVER_DETAIL, id },
+      ],
+    }),
+
+    /**
+     * PATCH /api/v1/admin/ambulance-drivers/{id}/status
+     * Update driver status (ACTIVE/INACTIVE)
+     */
+    updateDriverStatus: builder.mutation({
+      query: ({ id, status }) => ({
+        url: `/api/v1/admin/ambulance-drivers/${id}/status`,
+        method: 'PATCH',
+        params: { status },
+      }),
+      transformResponse: (response) => response?.data || response,
+      invalidatesTags: (result, error, { id }) => [
+        { type: API_TAGS.DRIVER_DETAIL, id },
+        API_TAGS.DRIVERS,
+      ],
+    }),
+
+    /**
+     * PATCH /api/v1/admin/ambulance-drivers/{id}/pause
+     * Pause driver from duty
+     */
+    pauseDriver: builder.mutation({
+      query: ({ id, reason }) => ({
+        url: `/api/v1/admin/ambulance-drivers/${id}/pause`,
+        method: 'PATCH',
+        params: { reason },
+      }),
+      transformResponse: (response) => response?.data || response,
+      invalidatesTags: (result, error, { id }) => [
+        { type: API_TAGS.DRIVER_DETAIL, id },
+        API_TAGS.DRIVERS,
+      ],
+    }),
+
+    /**
+     * PATCH /api/v1/admin/ambulance-drivers/{id}/resume
+     * Resume driver to duty
+     */
+    resumeDriver: builder.mutation({
+      query: (id) => ({
+        url: `/api/v1/admin/ambulance-drivers/${id}/resume`,
         method: 'PATCH',
       }),
       transformResponse: (response) => response?.data || response,
       invalidatesTags: (result, error, id) => [
         { type: API_TAGS.DRIVER_DETAIL, id },
+        API_TAGS.DRIVERS,
       ],
     }),
 
@@ -268,6 +318,9 @@ export const {
   useUpdateAmbulanceDriverMutation,
   useDeleteAmbulanceDriverMutation,
   useResetDriverCredentialsMutation,
+  useUpdateDriverStatusMutation: useUpdateDriverStatusMutation,
+  usePauseDriverMutation,
+  useResumeDriverMutation,
 
   // Ambulances
   useGetAmbulancesQuery,

@@ -8,11 +8,12 @@ import { appointmentServiceBaseQueryWithReauth } from '../../app/api/baseApi';
  * - Start video session (Doctor)
  * - Get active video session (Doctor/Patient)
  * - End video session (Doctor/Patient)
+ * - Get consultation context (appointment/patient info during call)
  */
 export const consultationApi = createApi({
   reducerPath: 'consultationApi',
   baseQuery: appointmentServiceBaseQueryWithReauth,
-  tagTypes: ['VideoSession', 'ActiveSession'],
+  tagTypes: ['VideoSession', 'ActiveSession', 'ConsultationContext'],
   endpoints: (builder) => ({
     /**
      * Start video consultation session (Doctor only)
@@ -105,6 +106,28 @@ export const consultationApi = createApi({
         return error;
       },
     }),
+
+    /**
+     * Get consultation context (appointment, patient, doctor info)
+     * GET /api/v1/doctors/consultations/{consultationId}/context
+     * Used during video call to fetch context for prescriptions/lab orders
+     */
+    getConsultationContext: builder.query({
+      query: (consultationId) => ({
+        url: `/api/v1/doctors/consultations/${consultationId}/context`,
+      }),
+      providesTags: (result, error, consultationId) => [
+        { type: 'ConsultationContext', id: consultationId },
+      ],
+      transformResponse: (response) => {
+        console.log('📋 Consultation context fetched:', response);
+        return response;
+      },
+      transformErrorResponse: (error) => {
+        console.error('❌ Failed to fetch consultation context:', error);
+        return error;
+      },
+    }),
   }),
 });
 
@@ -114,6 +137,7 @@ export const {
   useGetDoctorActiveVideoQuery,
   useGetPatientActiveVideoQuery,
   useEndVideoSessionMutation,
+  useGetConsultationContextQuery,
 } = consultationApi;
 
 // Export reducer

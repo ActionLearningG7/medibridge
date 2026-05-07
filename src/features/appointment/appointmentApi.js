@@ -263,6 +263,106 @@ export const appointmentApi = baseApi.injectEndpoints({
       transformResponse: (response) => response?.data || response,
       invalidatesTags: ['Queue', 'DoctorQueue', { type: 'QueueEntry', id: 'LIST' }],
     }),
+
+    /**
+     * POST /api/v1/doctors/queues/{queueId}/pause
+     */
+    pauseQueue: builder.mutation({
+      query: (queueId) => ({
+        url: `/api/v1/doctors/queues/${queueId}/pause`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['DoctorQueue'],
+    }),
+
+    /**
+     * POST /api/v1/doctors/queues/{queueId}/resume
+     */
+    resumeQueue: builder.mutation({
+      query: (queueId) => ({
+        url: `/api/v1/doctors/queues/${queueId}/resume`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['DoctorQueue'],
+    }),
+
+    /**
+     * POST /api/v1/doctors/queues/{queueId}/close
+     */
+    closeQueue: builder.mutation({
+      query: (queueId) => ({
+        url: `/api/v1/doctors/queues/${queueId}/close`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['Queue', 'DoctorQueue'],
+    }),
+
+    /**
+     * POST /api/v1/doctors/queues/entries/{entryId}/complete
+     */
+    completeQueueEntry: builder.mutation({
+      query: (entryId) => ({
+        url: `/api/v1/doctors/queues/entries/${entryId}/complete`,
+        method: 'POST',
+      }),
+      invalidatesTags: [{ type: 'QueueEntry', id: 'LIST' }, 'DoctorQueue'],
+    }),
+
+    /**
+     * POST /api/v1/doctors/queues/entries/{entryId}/no-show
+     */
+    markNoShow: builder.mutation({
+      query: (entryId) => ({
+        url: `/api/v1/doctors/queues/entries/${entryId}/no-show`,
+        method: 'POST',
+      }),
+      invalidatesTags: [{ type: 'QueueEntry', id: 'LIST' }, 'DoctorQueue'],
+    }),
+
+    /**
+     * POST /api/v1/doctors/queues/entries/{entryId}/skip
+     */
+    skipPatient: builder.mutation({
+      query: (entryId) => ({
+        url: `/api/v1/doctors/queues/entries/${entryId}/skip`,
+        method: 'POST',
+      }),
+      invalidatesTags: [{ type: 'QueueEntry', id: 'LIST' }, 'DoctorQueue'],
+    }),
+
+    /**
+     * GET /api/v1/appointments/doctor
+     * Get appointments for current doctor (DOCTOR role)
+     */
+    getDoctorAppointments: builder.query({
+      query: ({ date, status } = {}) => {
+        let url = '/api/v1/appointments/doctor';
+        const params = new URLSearchParams();
+        if (date) params.append('date', date);
+        if (status) params.append('status', status);
+        const queryString = params.toString();
+        return queryString ? `${url}?${queryString}` : url;
+      },
+      providesTags: (result) =>
+        result
+          ? [
+            ...result.map(({ id }) => ({ type: 'Appointment', id })),
+            { type: 'Appointment', id: 'LIST' },
+          ]
+          : [{ type: 'Appointment', id: 'LIST' }],
+    }),
+
+    /**
+     * POST /api/v1/doctors/queues/{queueId}/settings
+     */
+    updateQueueSettings: builder.mutation({
+      query: ({ queueId, settings }) => ({
+        url: `/api/v1/doctors/queues/${queueId}/settings`,
+        method: 'POST',
+        body: settings,
+      }),
+      invalidatesTags: ['DoctorQueue'],
+    }),
   }),
 });
 
@@ -281,7 +381,16 @@ export const {
   useLazyGetTodayQueueQuery,
   useGetQueueEntriesQuery,
   useLazyGetQueueEntriesQuery,
+  useGetDoctorAppointmentsQuery,
+  useLazyGetDoctorAppointmentsQuery,
   useCallNextPatientMutation,
+  usePauseQueueMutation,
+  useResumeQueueMutation,
+  useCloseQueueMutation,
+  useCompleteQueueEntryMutation,
+  useMarkNoShowMutation,
+  useSkipPatientMutation,
+  useUpdateQueueSettingsMutation,
 } = appointmentApi;
 
 export default appointmentApi;

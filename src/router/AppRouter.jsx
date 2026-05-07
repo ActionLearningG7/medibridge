@@ -13,7 +13,9 @@ import { AppShell } from '../components/layout';
 import AdminNavigation from '../components/admin/AdminNavigation';
 
 // Auth pages
+import LandingPage from '../pages/LandingPage';
 import Login from '../pages/auth/Login';
+import Register from '../pages/auth/Register';
 import ForcePasswordChange from '../pages/auth/ForcePasswordChange';
 import Unauthorized from '../pages/Unauthorized';
 
@@ -25,6 +27,9 @@ import PatientQueue from '../pages/patient/PatientQueue';
 import PatientSettings from '../pages/patient/PatientSettings';
 import PatientVideoConsultation from '../pages/patient/VideoConsultation';
 import PatientPrescriptions from '../pages/patient/PatientPrescriptions';
+import CheckoutPage from '../pages/patient/CheckoutPage';
+import PaymentSuccess from '../pages/payments/PaymentSuccess';
+import PaymentCancel from '../pages/payments/PaymentCancel';
 
 // Patient Lab Pages
 import LabCatalog from '../pages/patient/LabCatalog';
@@ -91,13 +96,34 @@ export const AppRouter = () => {
   return (
     <BrowserRouter>
       <Routes>
-        {/* ========== Root - Role Redirect ========== */}
-        <Route path="/" element={<RoleRedirect />} />
+        {/* ========== Root - Landing Page ========== */}
+        <Route path="/" element={<LandingPage />} />
 
         {/* ========== Public Routes ========== */}
+        <Route path="/dashboard" element={<RoleRedirect />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
         <Route path="/force-password-change" element={<ForcePasswordChange />} />
         <Route path="/unauthorized" element={<Unauthorized />} />
+        <Route path="/payments/checkout/:invoiceId" element={<CheckoutPage />} />
+
+        {/* ========== Payment Callback Routes (Locked to Patient) ========== */}
+        <Route
+          path="/payments/success"
+          element={
+            <ProtectedRoute allowedRoles={['PATIENT']}>
+              <PaymentSuccess />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/payments/cancel"
+          element={
+            <ProtectedRoute allowedRoles={['PATIENT']}>
+              <PaymentCancel />
+            </ProtectedRoute>
+          }
+        />
 
         {/* ========== Patient Routes ========== */}
         <Route

@@ -1,13 +1,13 @@
 /**
- * DoctorLabOrderDetails Page
- * Detailed view of a doctor's prescribed lab order
+ * Doctor Lab Order Details
+ * Simple, clean view for clinical diagnostic records
  */
 
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Download, MapPin, User, Phone } from 'lucide-react';
+import { ArrowLeft, Download, MapPin, User, FileText, Activity, Clock, Calendar } from 'lucide-react';
 import { useGetDoctorOrderDetailQuery } from '../../features/lab/labApi';
-import { PageHeader, Card, CardHeader, CardTitle, CardContent, Button, Badge, Toast } from '../../ui';
+import { Card, Button, Badge, Toast } from '../../ui';
 import { StatusTimeline } from '../../components/lab/StatusTimeline';
 import { LAB_ORDER_STATUS_LABELS } from '../../features/lab/constants';
 
@@ -16,60 +16,28 @@ export default function DoctorLabOrderDetails() {
   const navigate = useNavigate();
   const [toastState, setToastState] = useState({ isOpen: false, type: 'success', message: '' });
 
-  // Fetch order details
   const { data: order, isLoading, error, refetch } = useGetDoctorOrderDetailQuery(orderId, {
     skip: !orderId,
   });
 
-  // Show toast
   const showToast = (type, message) => {
     setToastState({ isOpen: true, type, message });
     setTimeout(() => setToastState({ ...toastState, isOpen: false }), 5000);
   };
 
-  // Handle download report
   const handleDownloadReport = async () => {
     try {
       window.open(`${process.env.REACT_APP_API_GATEWAY_BASE_URL}/doctors/lab-orders/${orderId}/report/download`, '_blank');
     } catch (error) {
-      showToast('error', 'Failed to download report');
+      showToast('error', 'Failed to initialize report download');
     }
   };
 
-  // Early return if no orderId is provided
-  if (!orderId) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <PageHeader title="Error" subtitle="Invalid order ID" />
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <Card>
-            <CardContent className="p-6 text-center">
-              <p className="text-yellow-700 font-semibold mb-2">No order ID provided</p>
-              <p className="text-gray-600 mb-4">Please select an order from your orders list</p>
-              <Button onClick={() => navigate('/doctor/labs/orders')}>
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Orders
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <PageHeader title="Order Details" />
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <Card>
-            <CardContent className="p-6">
-              <div className="animate-pulse space-y-4">
-                <div className="h-8 bg-gray-200 rounded w-1/3" />
-                <div className="h-4 bg-gray-200 rounded w-2/3" />
-              </div>
-            </CardContent>
-          </Card>
+      <div className="min-h-screen bg-[#fcfcfd] p-10">
+        <div className="max-w-5xl mx-auto">
+          <div className="h-64 bg-white border animate-pulse rounded-3xl" />
         </div>
       </div>
     );
@@ -77,245 +45,165 @@ export default function DoctorLabOrderDetails() {
 
   if (error || !order) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <PageHeader title="Order Details" />
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <Card className="p-6 text-center border-red-200 bg-red-50">
-            <p className="font-semibold text-red-900">Failed to load order details</p>
-            <p className="text-sm text-red-700 mt-2">{error?.data?.message || 'Please try again'}</p>
-            <div className="flex gap-2 mt-4 justify-center">
-              <Button variant="outline" onClick={() => refetch()}>
-                Retry
-              </Button>
-              <Button variant="outline" onClick={() => navigate('/doctors/lab-orders')}>
-                Back to Orders
-              </Button>
-            </div>
-          </Card>
+      <div className="min-h-screen bg-[#fcfcfd] p-10">
+        <div className="max-w-md mx-auto text-center">
+          <div className="bg-white border rounded-3xl p-8 shadow-sm">
+            <p className="text-gray-900 font-bold text-lg mb-2">Record Not Found</p>
+            <p className="text-gray-500 mb-6">The diagnostic record you are looking for is unavailable.</p>
+            <Button variant="outline" onClick={() => navigate('/doctor/labs/orders')} className="w-full rounded-xl">
+              Back to List
+            </Button>
+          </div>
         </div>
       </div>
     );
   }
 
-  const statusLabel = LAB_ORDER_STATUS_LABELS[order.status] || order.status;
   const isReportReady = order.status === 'report_ready' || order.reportPublishedAt;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <PageHeader title="Order Details" />
-
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Back button */}
+    <div className="min-h-screen bg-[#fcfcfd] py-12 px-6">
+      <div className="max-w-6xl mx-auto">
         <button
-          onClick={() => navigate('/doctors/lab-orders')}
-          className="flex items-center gap-2 text-primary-600 hover:text-primary-700 mb-6 font-medium"
+          onClick={() => navigate('/doctor/labs/orders')}
+          className="flex items-center gap-2 text-gray-500 hover:text-gray-900 mb-10 transition-colors font-medium text-sm"
         >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Orders
+          <ArrowLeft size={16} />
+          Diagnostic History
         </button>
 
-        {/* Header card */}
-        <Card className="mb-6">
-          <div className="p-6">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <p className="text-sm text-gray-600">Order ID</p>
-                <h1 className="text-3xl font-bold text-gray-900">#{order.id}</h1>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+          {/* Left Column: Context */}
+          <div className="lg:col-span-8 space-y-8">
+            <div className="bg-white border rounded-3xl p-8 shadow-sm relative overflow-hidden">
+              <div className="flex justify-between items-start mb-8 relative z-10">
+                <div>
+                  <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
+                    <FileText size={12} />
+                    Diagnostic Order
+                  </div>
+                  <h1 className="text-4xl font-black text-gray-900 tracking-tight">#{order.id?.substring(0, 12)}</h1>
+                </div>
+                <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${isReportReady ? 'bg-green-50 text-green-700 border-green-100' : 'bg-blue-50 text-blue-700 border-blue-100'
+                  }`}>
+                  {LAB_ORDER_STATUS_LABELS[order.status] || order.status}
+                </div>
               </div>
-              <Badge
-                variant={
-                  order.status === 'completed' || order.status === 'report_ready'
-                    ? 'success'
-                    : order.status === 'cancelled' || order.status === 'failed'
-                    ? 'danger'
-                    : 'warning'
-                }
-              >
-                {statusLabel}
-              </Badge>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 relative z-10">
+                <div className="flex items-center gap-4 bg-gray-50/50 p-4 rounded-2xl border border-gray-50">
+                  <div className="p-2.5 bg-white text-gray-400 rounded-xl shadow-sm">
+                    <User size={20} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Patient Profile</p>
+                    <p className="text-lg font-bold text-gray-900">{order.patient?.fullName}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 bg-gray-50/50 p-4 rounded-2xl border border-gray-50">
+                  <div className="p-2.5 bg-white text-indigo-500 rounded-xl shadow-sm">
+                    <Activity size={20} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Status Tracking</p>
+                    <button
+                      onClick={() => navigate(`/doctor/labs/tracking/${orderId}`)}
+                      className="text-lg font-bold text-indigo-600 hover:underline"
+                    >
+                      View Live Map
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {/* Actions */}
-            <Button
-              size="sm"
-              onClick={() => navigate(`/doctors/lab-orders/${orderId}/tracking`)}
-              className="flex items-center gap-2"
-            >
-              Track Delivery
-            </Button>
-          </div>
-        </Card>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main content */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Status Timeline */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Order Timeline</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <StatusTimeline events={order.trackingEvents || []} />
-              </CardContent>
-            </Card>
-
-            {/* Tests */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Tests Prescribed</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {order.tests?.map((test) => (
-                    <div key={test.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                      <div>
-                        <p className="font-medium text-gray-900">{test.name}</p>
-                        <p className="text-xs text-gray-600">{test.code}</p>
-                      </div>
-                      <p className="font-semibold text-primary-600">₹{test.price}</p>
+            <div className="bg-white border rounded-3xl p-8 shadow-sm">
+              <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                <FileText size={20} className="text-gray-400" />
+                Tests in Order
+              </h3>
+              <div className="space-y-3">
+                {order.tests?.map((test) => (
+                  <div key={test.id} className="flex justify-between items-center p-4 bg-gray-50/50 rounded-2xl border border-gray-50 hover:border-gray-100 transition-colors">
+                    <div>
+                      <p className="font-bold text-gray-900">{test.name}</p>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{test.code}</p>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                    <p className="text-lg font-black text-indigo-600">€{test.price}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
 
-            {/* Report Section */}
-            {isReportReady ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Test Report</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                    <p className="text-sm text-green-700 mb-4">
-                      Patient's test report is ready. You can view and download it below.
-                    </p>
-                    <Button onClick={handleDownloadReport} className="w-full">
-                      <Download className="h-4 w-4 mr-2" />
-                      Download Report
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Test Report</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="text-sm text-blue-700">
-                      Report not available yet. Tests are still being processed.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            <div className="bg-white border rounded-3xl p-8 shadow-sm">
+              <h3 className="text-xl font-bold text-gray-900 mb-6">Collection Timeline</h3>
+              <StatusTimeline events={order.trackingEvents || []} />
+            </div>
           </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Amount summary */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Amount</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Subtotal</span>
-                  <span className="font-medium">₹{order.totalPrice}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Tax</span>
-                  <span className="font-medium">₹{order.tax || 0}</span>
-                </div>
-                <div className="border-t pt-3 flex justify-between">
-                  <span className="font-semibold">Total</span>
-                  <span className="text-xl font-bold text-primary-600">
-                    ₹{(order.totalPrice || 0) + (order.tax || 0)}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Patient Info */}
-            {order.patient && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <User className="h-5 w-5" />
-                    Patient
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="text-sm space-y-2">
-                  <p className="font-medium text-gray-900">{order.patient.fullName}</p>
-                  <p className="text-gray-600">{order.patient.email}</p>
-                  <a
-                    href={`tel:${order.patient.phone}`}
-                    className="text-primary-600 hover:text-primary-700 font-medium"
-                  >
-                    {order.patient.phone}
-                  </a>
-                </CardContent>
-              </Card>
+          {/* Right Column: Actions & Details */}
+          <div className="lg:col-span-4 space-y-8">
+            {isReportReady ? (
+              <div className="bg-indigo-600 rounded-3xl p-8 text-white shadow-xl shadow-indigo-200 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -mr-12 -mt-12 group-hover:bg-white/20 transition-all duration-700" />
+                <h3 className="text-2xl font-black mb-4 flex items-center gap-2">
+                  <Download size={24} />
+                  Report Ready
+                </h3>
+                <p className="text-indigo-100 text-sm mb-8 leading-relaxed italic">
+                  The clinical diagnostic report has been finalized and is ready for your analysis.
+                </p>
+                <button
+                  onClick={handleDownloadReport}
+                  className="w-full py-4 bg-white text-indigo-600 font-black rounded-2xl hover:bg-gray-50 transition-all shadow-lg"
+                >
+                  Download Analysis PDF
+                </button>
+              </div>
+            ) : (
+              <div className="bg-white border rounded-3xl p-8 shadow-sm border-indigo-100">
+                <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                  <Clock size={20} className="text-indigo-400" />
+                  Processing...
+                </h3>
+                <p className="text-gray-500 text-sm italic leading-relaxed">
+                  The diagnostics are currently in progress. You will be notified once the final report is ready.
+                </p>
+              </div>
             )}
 
-            {/* Address */}
-            {order.address && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <MapPin className="h-5 w-5" />
-                    Collection Address
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="text-sm space-y-1">
-                  <p className="font-medium">{order.address.line1}</p>
-                  {order.address.line2 && <p>{order.address.line2}</p>}
-                  <p>{order.address.city}, {order.address.state} {order.address.zipCode}</p>
-                </CardContent>
-              </Card>
-            )}
+            <div className="bg-white border rounded-3xl p-8 shadow-sm space-y-8">
+              <div>
+                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Collection Point</h4>
+                <div className="flex gap-4">
+                  <div className="mt-1 text-gray-400"><MapPin size={18} /></div>
+                  <div className="text-sm font-bold text-gray-700 leading-relaxed">
+                    <p className="text-gray-900 font-black">{order.address?.line1}</p>
+                    {order.address?.line2 && <p>{order.address?.line2}</p>}
+                    <p>{order.address?.city}, {order.address?.state} {order.address?.zipCode}</p>
+                  </div>
+                </div>
+              </div>
 
-            {/* Collection slot */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Collection Slot</CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm space-y-1">
-                {order.preferredSlotStart ? (
-                  <>
-                    <p className="font-medium">
-                      {new Date(order.preferredSlotStart).toLocaleDateString('en-IN', {
-                        weekday: 'long',
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                      })}
-                    </p>
-                    <p className="text-gray-600">
-                      {new Date(order.preferredSlotStart).toLocaleTimeString('en-IN', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        hour12: true,
-                      })}
-                      {order.preferredSlotEnd && (
-                        <>
+              <div>
+                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Requested Slot</h4>
+                <div className="flex gap-4">
+                  <div className="mt-1 text-gray-400"><Calendar size={18} /></div>
+                  <div className="text-sm font-black text-gray-900">
+                    {order.preferredSlotStart ? (
+                      <>
+                        <p>{new Date(order.preferredSlotStart).toLocaleDateString(undefined, { dateStyle: 'long' })}</p>
+                        <p className="text-indigo-600 mt-1 uppercase text-[10px] tracking-widest">
+                          {new Date(order.preferredSlotStart).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           {' - '}
-                          {new Date(order.preferredSlotEnd).toLocaleTimeString('en-IN', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            hour12: true,
-                          })}
-                        </>
-                      )}
-                    </p>
-                  </>
-                ) : (
-                  <p className="text-gray-600">Collection slot not specified</p>
-                )}
-              </CardContent>
-            </Card>
+                          {order.preferredSlotEnd && new Date(order.preferredSlotEnd).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </>
+                    ) : 'Pending Slot'}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -323,7 +211,6 @@ export default function DoctorLabOrderDetails() {
       {toastState.isOpen && (
         <Toast
           variant={toastState.type}
-          title={toastState.type === 'success' ? 'Success' : 'Error'}
           message={toastState.message}
           isOpen={toastState.isOpen}
           onClose={() => setToastState({ ...toastState, isOpen: false })}

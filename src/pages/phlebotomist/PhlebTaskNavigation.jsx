@@ -10,18 +10,18 @@ import { Button } from '../../ui';
 
 // Marker icons
 const HOSPITAL_ICON = {
-  url: "https://cdn-icons-png.flaticon.com/32/4320/4320371.png",
-  scaledSize: window.google?.maps ? new window.google.maps.Size(32, 32) : { width: 32, height: 32 }
+    url: "https://cdn-icons-png.flaticon.com/32/4320/4320371.png",
+    scaledSize: window.google?.maps ? new window.google.maps.Size(32, 32) : { width: 32, height: 32 }
 };
 
 const DESTINATION_ICON = {
-  url: "https://cdn-icons-png.flaticon.com/32/3004/3004033.png",
-  scaledSize: window.google?.maps ? new window.google.maps.Size(32, 32) : { width: 32, height: 32 }
+    url: "https://cdn-icons-png.flaticon.com/32/3004/3004033.png",
+    scaledSize: window.google?.maps ? new window.google.maps.Size(32, 32) : { width: 32, height: 32 }
 };
 
 const MY_LOCATION_ICON = {
-  url: "https://cdn-icons-png.flaticon.com/32/3004/3004052.png",
-  scaledSize: window.google?.maps ? new window.google.maps.Size(40, 40) : { width: 40, height: 40 }
+    url: "https://cdn-icons-png.flaticon.com/32/3004/3004052.png",
+    scaledSize: window.google?.maps ? new window.google.maps.Size(40, 40) : { width: 40, height: 40 }
 };
 
 const PhlebTaskNavigation = () => {
@@ -111,7 +111,7 @@ const PhlebTaskNavigation = () => {
             },
             {
                 enableHighAccuracy: true,
-                timeout: 10000,
+                timeout: 20000,
                 maximumAge: 5000
             }
         );

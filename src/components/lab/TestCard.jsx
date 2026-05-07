@@ -1,10 +1,5 @@
-/**
- * TestCard Component
- * Individual test card displaying test details
- */
-
 import React from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Check, Clock, ShieldCheck, Home, AlertCircle } from 'lucide-react';
 import { Badge, Button } from '../../ui';
 
 export const TestCard = ({
@@ -19,73 +14,81 @@ export const TestCard = ({
   };
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 hover:shadow-md transition-shadow overflow-hidden h-full flex flex-col">
-      {/* Header with code and badges */}
-      <div className="px-4 pt-4 pb-2">
-        <div className="flex justify-between items-start gap-2 mb-2">
-          <span className="text-xs font-medium text-gray-500 uppercase">
-            {test.testCode || test.code}
-          </span>
-          <div className="flex gap-1 flex-wrap justify-end">
-            {test.fastingRequired && (
-              <Badge variant="warning" size="sm">
-                Fasting
-              </Badge>
-            )}
-            {test.homeCollectionSupported && (
-              <Badge variant="success" size="sm">
-                Home
-              </Badge>
-            )}
-          </div>
+    <div className="group bg-white rounded-[2.5rem] border-2 border-gray-50 hover:border-primary-100 hover:shadow-2xl hover:shadow-primary-100/20 transition-all duration-500 overflow-hidden flex flex-col h-full animate-in fade-in zoom-in-95">
+      {/* Top Section: Badges and Code */}
+      <div className="p-6 pb-0 flex justify-between items-start">
+        <span className="text-[10px] font-black tracking-widest text-gray-400 uppercase bg-gray-50 px-3 py-1 rounded-full">
+          {test.testCode || test.code}
+        </span>
+        <div className="flex -space-x-1">
+          {test.homeCollectionSupported && (
+            <div className="bg-emerald-50 text-emerald-600 p-2 rounded-xl shadow-sm border border-emerald-100" title="Home Collection Available">
+              <Home className="w-4 h-4" />
+            </div>
+          )}
         </div>
-
-        {/* Test name */}
-        <h3 className="text-sm font-semibold text-gray-900 line-clamp-2 mb-2">
-          {test.name}
-        </h3>
-
-        {/* Sample type */}
-        <p className="text-xs text-gray-600 mb-3">
-          Sample: <span className="font-medium capitalize">{test.sampleType}</span>
-        </p>
       </div>
 
-      {/* Price and description */}
-      <div className="px-4 py-3 bg-gray-50 flex-grow">
+      {/* Main Info */}
+      <div className="p-6 pt-4 flex-grow space-y-4">
+        <h3 className="text-xl font-black text-gray-900 leading-tight group-hover:text-primary-600 transition-colors line-clamp-2">
+          {test.name || test.testName}
+        </h3>
+
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-none px-3 py-1 rounded-lg text-[10px] font-bold">
+            {test.sampleType?.toUpperCase()} SAMPLE
+          </Badge>
+          {test.fastingRequired && (
+            <Badge className="bg-amber-50 text-amber-700 border-none px-3 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1">
+              <AlertCircle className="w-3 h-3" /> FASTING REQ.
+            </Badge>
+          )}
+        </div>
+
         {test.description && (
-          <p className="text-xs text-gray-600 line-clamp-2 mb-2">
+          <p className="text-sm text-gray-500 font-medium line-clamp-2 leading-relaxed">
             {test.description}
           </p>
         )}
 
-        {test.turnaroundTime && (
-          <p className="text-xs text-gray-500">
-            Results: {test.turnaroundTime}
-          </p>
-        )}
+        <div className="flex items-center gap-4 pt-2">
+          <div className="flex items-center gap-1.5 text-gray-400">
+            <Clock className="w-4 h-4" />
+            <span className="text-xs font-bold">{test.turnaroundTime || '24-48h'}</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-gray-400">
+            <ShieldCheck className="w-4 h-4" />
+            <span className="text-xs font-bold">Verified</span>
+          </div>
+        </div>
       </div>
 
-      {/* Footer with price and button */}
-      <div className="px-4 py-4 border-t border-gray-200">
-        <div className="flex justify-between items-center">
+      {/* Footer Section */}
+      <div className="p-6 pt-0 border-t-2 border-gray-50 bg-gray-50/30">
+        <div className="flex justify-between items-end mt-4">
           <div>
-            <p className="text-xs text-gray-500 mb-1">Price</p>
-            <p className="text-lg font-bold text-primary-600">
-              ₹{test.price}
-            </p>
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1 ml-1">Price</span>
+            <div className="flex items-baseline gap-0.5 mt-[-4px]">
+              <span className="text-xl font-bold text-gray-900">€</span>
+              <span className="text-3xl font-black text-gray-900 tracking-tighter">{test.price}</span>
+            </div>
           </div>
+
           <Button
-            size="sm"
+            size="lg"
             variant={isInCart ? 'outline' : 'primary'}
             onClick={handleAdd}
             disabled={isLoading || isInCart}
-            className={isInCart ? 'opacity-60' : ''}
+            className={`rounded-2xl h-14 w-14 p-0 shadow-lg transition-all duration-300 ${isInCart
+                ? 'bg-emerald-50 border-emerald-100 text-emerald-600 hover:bg-emerald-100 cursor-default shadow-none'
+                : 'bg-primary-600 hover:bg-primary-700 hover:shadow-primary-200 active:scale-90'
+              }`}
           >
             {isInCart ? (
-              <span className="text-xs">In Cart</span>
+              <Check className="h-6 w-6 stroke-[3]" />
             ) : (
-              <Plus className="h-4 w-4" />
+              <Plus className="h-6 w-6 stroke-[3]" />
             )}
           </Button>
         </div>

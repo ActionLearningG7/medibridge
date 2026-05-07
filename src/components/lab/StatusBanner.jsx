@@ -1,77 +1,77 @@
-/**
- * StatusBanner Component
- * Contextual banner showing current order status
- */
-
 import React from 'react';
-import { AlertCircle, Clock, Navigation, MapPin, CheckCircle, Loader } from 'lucide-react';
+import { AlertCircle, Clock, Navigation, MapPin, CheckCircle, Loader2, Sparkles, Zap, PackageOpen, FlaskConical } from 'lucide-react';
 
 const STATUS_CONFIGS = {
-  waiting_assignment: {
-    icon: <Clock className="h-5 w-5" />,
-    title: 'Waiting for Assignment',
-    message: 'A phlebotomist will be assigned shortly',
-    bg: 'bg-yellow-50',
-    border: 'border-yellow-200',
-    text: 'text-yellow-800',
+  ASSIGNED: {
+    icon: <Clock className="h-6 w-6 stroke-[2.5]" />,
+    title: 'Deployment Confirmed',
+    message: 'A clinical specialist has been assigned to your case',
+    theme: 'bg-amber-500/10 border-amber-500/20 text-amber-700',
+    accent: 'bg-amber-500',
   },
-  en_route: {
-    icon: <Navigation className="h-5 w-5" />,
-    title: 'En Route',
-    message: 'Phlebotomist is on the way to your location',
-    bg: 'bg-blue-50',
-    border: 'border-blue-200',
-    text: 'text-blue-800',
+  EN_ROUTE_TO_PATIENT: {
+    icon: <Navigation className="h-6 w-6 stroke-[2.5]" />,
+    title: 'In Transit',
+    message: 'Specialist is navigating to your designated location',
+    theme: 'bg-blue-600/10 border-blue-600/20 text-blue-700',
+    accent: 'bg-blue-600',
   },
-  arrived: {
-    icon: <MapPin className="h-5 w-5" />,
-    title: 'Arrived',
-    message: 'Phlebotomist has arrived at your location',
-    bg: 'bg-green-50',
-    border: 'border-green-200',
-    text: 'text-green-800',
+  ARRIVED_AT_PATIENT: {
+    icon: <MapPin className="h-6 w-6 stroke-[2.5]" />,
+    title: 'On Site',
+    message: 'Specialist has arrived and is preparing for collection',
+    theme: 'bg-indigo-600/10 border-indigo-600/20 text-indigo-700',
+    accent: 'bg-indigo-600',
   },
-  sample_collected: {
-    icon: <CheckCircle className="h-5 w-5" />,
-    title: 'Sample Collected',
-    message: 'Sample collected successfully',
-    bg: 'bg-green-50',
-    border: 'border-green-200',
-    text: 'text-green-800',
+  SAMPLE_COLLECTED: {
+    icon: <PackageOpen className="h-6 w-6 stroke-[2.5]" />,
+    title: 'Collection Verified',
+    message: 'Specimen secured and ready for laboratory transit',
+    theme: 'bg-emerald-600/10 border-emerald-600/20 text-emerald-700',
+    accent: 'bg-emerald-600',
   },
-  in_transit: {
-    icon: <Loader className="h-5 w-5" />,
-    title: 'In Transit to Lab',
-    message: 'Sample is on the way to the lab',
-    bg: 'bg-purple-50',
-    border: 'border-purple-200',
-    text: 'text-purple-800',
+  EN_ROUTE_TO_LAB: {
+    icon: <Zap className="h-6 w-6 stroke-[2.5]" />,
+    title: 'Priority Transit',
+    message: 'Samples en route to the pathology laboratory',
+    theme: 'bg-violet-600/10 border-violet-600/20 text-violet-700',
+    accent: 'bg-violet-600',
   },
-  completed: {
-    icon: <CheckCircle className="h-5 w-5" />,
-    title: 'Completed',
-    message: 'Sample processing has started',
-    bg: 'bg-green-50',
-    border: 'border-green-200',
-    text: 'text-green-800',
+  SAMPLES_RECEIVED_AT_LAB: {
+    icon: <FlaskConical className="h-6 w-6 stroke-[2.5]" />,
+    title: 'Laboratory Intake',
+    message: 'Analysis in progress at our central facility',
+    theme: 'bg-emerald-600/10 border-emerald-600/20 text-emerald-700',
+    accent: 'bg-emerald-600',
   },
 };
 
-export const StatusBanner = ({ status, eta }) => {
-  const config = STATUS_CONFIGS[status] || STATUS_CONFIGS.waiting_assignment;
+export const StatusBanner = ({ status, eta, className = '' }) => {
+  const config = STATUS_CONFIGS[status] || STATUS_CONFIGS.ASSIGNED;
 
   return (
-    <div className={`${config.bg} border ${config.border} rounded-lg p-4 mb-6`}>
-      <div className="flex items-center gap-3">
-        <div className={config.text}>{config.icon}</div>
-        <div className="flex-1">
-          <p className={`font-semibold ${config.text}`}>{config.title}</p>
-          <p className={`text-sm ${config.text} opacity-90`}>{config.message}</p>
+    <div className={`relative overflow-hidden rounded-[2.5rem] border-2 p-8 ${config.theme} ${className}`}>
+      {/* Decorative background element */}
+      <div className={`absolute top-0 right-0 w-64 h-64 opacity-10 rounded-full translate-x-20 -translate-y-20 ${config.accent}`} />
+
+      <div className="relative flex flex-col md:flex-row md:items-center gap-8">
+        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 shadow-lg ${config.accent} text-white`}>
+          {config.icon}
         </div>
+
+        <div className="flex-1 space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Real-Time Status</span>
+            <span className="flex h-1.5 w-1.5 rounded-full bg-current animate-pulse" />
+          </div>
+          <h3 className="text-2xl font-black tracking-tight leading-none">{config.title}</h3>
+          <p className="font-medium opacity-80">{config.message}</p>
+        </div>
+
         {eta && (
-          <div className="text-right">
-            <p className={`text-xs font-medium ${config.text} opacity-75`}>ETA</p>
-            <p className={`font-bold ${config.text}`}>{eta}</p>
+          <div className={`px-8 py-4 rounded-3xl bg-white/40 backdrop-blur-md border border-white/50 text-right shrink-0`}>
+            <p className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-1 leading-none">Intelligence ETA</p>
+            <p className="text-2xl font-black tracking-tight leading-none whitespace-nowrap">{eta}</p>
           </div>
         )}
       </div>

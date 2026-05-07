@@ -1,12 +1,12 @@
 /**
  * Create Collection Task Modal
- * Modal for assigning unassigned lab orders to phlebotomists
+ * Specialized modal for assigning personnel to unassigned lab orders
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Modal, Button, Input } from '../../ui';
 import { useGetAvailablePhlebotomistsQuery } from '../../app/api/adminUserApi';
-import { Search, Loader } from 'lucide-react';
+import { Search, Loader2, UserPlus, Info, MapPin } from 'lucide-react';
 
 export default function CreateCollectionTaskModal({
   isOpen,
@@ -19,43 +19,27 @@ export default function CreateCollectionTaskModal({
 }) {
   const [selectedPhlebotomistId, setSelectedPhlebotomistId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredPhlebotomists, setFilteredPhlebotomists] = useState([]);
 
   // Fetch available phlebotomists - skip if modal is closed
   const { data: phlebotomistsResponse, isLoading: isLoadingPhlebotomists } = useGetAvailablePhlebotomistsQuery(
     {},
-    {
-      skip: !isOpen, // Only fetch when modal is open
-    }
+    { skip: !isOpen }
   );
 
-  // Memoize phlebotomists array to prevent infinite loop
   const phlebotomists = useMemo(() => phlebotomistsResponse?.content || [], [phlebotomistsResponse]);
 
-  // Filter phlebotomists based on search
-  useEffect(() => {
-    if (searchQuery.trim() === '') {
-      setFilteredPhlebotomists(phlebotomists);
-    } else {
-      const query = searchQuery.toLowerCase();
-      const filtered = phlebotomists.filter((phlebotomist) => {
-        const name = phlebotomist.firstName && phlebotomist.lastName
-          ? `${phlebotomist.firstName} ${phlebotomist.lastName}`.toLowerCase()
-          : '';
-        const email = phlebotomist.email?.toLowerCase() || '';
-        const phone = phlebotomist.phoneNumber?.toLowerCase() || '';
-
-        return name.includes(query) || email.includes(query) || phone.includes(query);
-      });
-      setFilteredPhlebotomists(filtered);
-    }
+  const filteredPhlebotomists = useMemo(() => {
+    if (!searchQuery.trim()) return phlebotomists;
+    const q = searchQuery.toLowerCase();
+    return phlebotomists.filter(p =>
+      `${p.firstName} ${p.lastName}`.toLowerCase().includes(q) ||
+      p.email?.toLowerCase().includes(q) ||
+      p.phoneNumber?.toLowerCase().includes(q)
+    );
   }, [searchQuery, phlebotomists]);
 
   const handleSubmit = () => {
-    if (!selectedPhlebotomistId.trim()) {
-      alert('Please select a phlebotomist');
-      return;
-    }
+    if (!selectedPhlebotomistId) return;
     onSubmit(orderId, selectedPhlebotomistId);
     handleClose();
   };
@@ -67,103 +51,111 @@ export default function CreateCollectionTaskModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Create Collection Task">
-      <div className="space-y-6">
-        {/* Order Details Summary */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <p className="text-sm text-gray-600">Order Details</p>
-          <div className="mt-2 space-y-1">
-            <p className="font-semibold text-gray-900">{orderNumber}</p>
-            <p className="text-xs text-gray-600">{testCount} test(s)</p>
+    <Modal isOpen={isOpen} onClose={handleClose} title="Dispatch Lab Mission">
+      <div className="space-y-8 py-4">
+
+        {/* Context Briefing */}
+        <div className="bg-indigo-50 border border-indigo-100 rounded-[2rem] p-6 flex items-start gap-4">
+          <div className="mt-1 text-indigo-600"><Info size={24} strokeWidth={2.5} /></div>
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Target Order</span>
+              <span className="text-[10px] font-black font-mono bg-white px-2 py-0.5 rounded border border-indigo-100 italic">#{orderNumber?.slice(-8)}</span>
+            </div>
+            <p className="text-indigo-900 font-black tracking-tight">{testCount} Clinical Diagnostics Identified</p>
+            <div className="flex items-center gap-1.5 mt-2 text-indigo-400">
+              <MapPin size={12} />
+              <span className="text-[10px] font-bold uppercase tracking-wider">Deployment Area: Standard Zone</span>
+            </div>
           </div>
         </div>
 
-        {/* Phlebotomist Selection */}
-        <div className="space-y-3">
-          <label className="block text-sm font-medium text-gray-900">
-            Select Phlebotomist
-          </label>
+        {/* Personnel Selection */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-black text-slate-900 uppercase tracking-tight">Available Personnel</label>
+            <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">{filteredPhlebotomists.length} Online</span>
+          </div>
 
-          {/* Search Input */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <div className="relative group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
             <Input
               type="text"
-              placeholder="Search by name, email, or phone..."
+              placeholder="Search by name, ID or sector..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
+              className="pl-12 h-14 rounded-2xl border-slate-100 focus:border-indigo-500 shadow-sm transition-all"
               disabled={isLoadingPhlebotomists}
             />
           </div>
 
-          {/* Phlebotomist List */}
-          {isLoadingPhlebotomists ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader className="h-5 w-5 text-blue-600 animate-spin" />
-              <span className="ml-2 text-sm text-gray-600">Loading phlebotomists...</span>
-            </div>
-          ) : filteredPhlebotomists.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-sm text-gray-600">
-                {searchQuery ? 'No phlebotomists match your search' : 'No active phlebotomists available'}
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-2 max-h-64 overflow-y-auto border border-gray-200 rounded-lg">
-              {filteredPhlebotomists.map((phlebotomist) => (
+          <div className="space-y-2 max-h-72 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-200">
+            {isLoadingPhlebotomists ? (
+              <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+                <Loader2 size={32} className="animate-spin mb-4" />
+                <p className="text-xs font-bold uppercase tracking-widest italic">Synchronizing Fleet...</p>
+              </div>
+            ) : filteredPhlebotomists.length === 0 ? (
+              <div className="text-center py-12 border-2 border-dashed border-slate-100 rounded-[2rem]">
+                <p className="text-sm font-bold text-slate-400 italic">No available units in the selected sector.</p>
+              </div>
+            ) : (
+              filteredPhlebotomists.map((p) => (
                 <div
-                  key={phlebotomist.userId}
-                  onClick={() => setSelectedPhlebotomistId(phlebotomist.userId)}
-                  className={`p-3 cursor-pointer transition-colors ${selectedPhlebotomistId === phlebotomist.userId
-                      ? 'bg-blue-100 border-l-4 border-blue-600'
-                      : 'bg-white hover:bg-gray-50 border-l-4 border-transparent'
+                  key={p.userId}
+                  onClick={() => setSelectedPhlebotomistId(p.userId)}
+                  className={`p-4 cursor-pointer transition-all rounded-[1.5rem] border-2 flex items-center justify-between group ${selectedPhlebotomistId === p.userId
+                    ? 'bg-indigo-600 border-indigo-600 text-white shadow-xl shadow-indigo-200'
+                    : 'bg-white border-slate-50 hover:border-indigo-100'
                     }`}
                 >
-                  <p className="font-medium text-sm text-gray-900">
-                    {phlebotomist.firstName} {phlebotomist.lastName}
-                  </p>
-                  <p className="text-xs text-gray-600">{phlebotomist.email}</p>
-                  {phlebotomist.phoneNumber && (
-                    <p className="text-xs text-gray-500">{phlebotomist.phoneNumber}</p>
-                  )}
+                  <div className="flex items-center gap-4">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${selectedPhlebotomistId === p.userId ? 'bg-white/10' : 'bg-slate-50 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-500'}`}>
+                      <UserPlus size={18} />
+                    </div>
+                    <div>
+                      <p className={`text-sm font-black tracking-tight ${selectedPhlebotomistId === p.userId ? 'text-white' : 'text-slate-900'}`}>
+                        {p.firstName} {p.lastName}
+                      </p>
+                      <p className={`text-[10px] font-bold uppercase tracking-widest ${selectedPhlebotomistId === p.userId ? 'text-indigo-200' : 'text-slate-400'}`}>
+                        ID: {p.userId?.slice(0, 8)} • {p.shiftType}
+                      </p>
+                    </div>
+                  </div>
+                  {selectedPhlebotomistId === p.userId && <CheckCircle size={18} className="text-white" />}
                 </div>
-              ))}
-            </div>
-          )}
-
-          {/* Selected Indicator */}
-          {selectedPhlebotomistId && (
-            <div className="bg-green-50 border border-green-200 rounded p-3">
-              <p className="text-xs font-medium text-green-900">
-                ✓ Selected:{' '}
-                {phlebotomists.find((p) => p.userId === selectedPhlebotomistId)?.firstName}{' '}
-                {phlebotomists.find((p) => p.userId === selectedPhlebotomistId)?.lastName}
-              </p>
-            </div>
-          )}
+              ))
+            )}
+          </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex gap-3 pt-4 border-t border-gray-200">
+        {/* Action Panel */}
+        <div className="flex gap-4 pt-6 border-t border-slate-50">
           <Button
             variant="outline"
             onClick={handleClose}
             disabled={isLoading}
-            className="flex-1"
+            className="flex-1 h-16 rounded-[1.5rem] font-black text-slate-600 tracking-tight"
           >
-            Cancel
+            Abort Discovery
           </Button>
           <Button
             onClick={handleSubmit}
             disabled={!selectedPhlebotomistId || isLoading}
             loading={isLoading}
-            className="flex-1"
+            className="flex-1 h-16 rounded-[1.5rem] font-black bg-indigo-600 text-white shadow-lg shadow-indigo-100 tracking-tight"
           >
-            Create & Assign Task
+            Dispatch Unit
           </Button>
         </div>
       </div>
     </Modal>
   );
 }
+
+const CheckCircle = ({ size, className }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+    <polyline points="22 4 12 14.01 9 11.01" />
+  </svg>
+);

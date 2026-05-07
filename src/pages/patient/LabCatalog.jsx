@@ -1,11 +1,6 @@
-/**
- * LabCatalog Page - Patient
- * Browse and add lab tests to cart
- * Real API integration with filters, loading, and empty states
- */
-
 import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { ShoppingBag, Filter, Search, Grid, List as ListIcon, RefreshCcw, Info } from 'lucide-react';
 import { useGetLabTestsQuery } from '../../features/lab/labApi';
 import {
   addTestToCart,
@@ -23,7 +18,7 @@ import {
   selectIsCartEmpty,
   selectHasActiveFilters,
 } from '../../features/lab/selectors';
-import { PageHeader, Card } from '../../ui';
+import { Button, Card, Input } from '../../ui';
 import { TestCard } from '../../components/lab/TestCard';
 import { TestFilters } from '../../components/lab/TestFilters';
 import { CartSummary } from '../../components/lab/CartSummary';
@@ -65,7 +60,7 @@ export default function LabCatalog() {
     dispatch(
       addTestToCart({
         testId: test.id,
-        testCode: test.testCode || test.code, // Backend returns testCode, mock uses code
+        testCode: test.testCode || test.code,
         testName: test.name || test.testName,
         price: test.price,
         sampleType: test.sampleType,
@@ -96,14 +91,44 @@ export default function LabCatalog() {
     setSortBy('popularity');
   };
 
-  // Empty state
-  if (!isLoading && tests.length === 0 && hasActiveFilters) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <PageHeader title="Lab Tests" subtitle="Browse and book lab tests from home" />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            <div className="lg:col-span-1">
+  return (
+    <div className="min-h-screen bg-[#F8FAFC]">
+      {/* Premium Header */}
+      <div className="bg-white border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-primary-600 font-bold text-xs uppercase tracking-widest">
+                <ShoppingBag className="w-4 h-4" />
+                Medical Marketplace
+              </div>
+              <h1 className="text-4xl font-black text-gray-900 tracking-tight">Diagnostics Catalog</h1>
+              <p className="text-gray-500 font-medium max-w-xl">
+                Browse our comprehensive range of clinical diagnostics and health packages with premium home collection services.
+              </p>
+            </div>
+            {!isCartEmpty && (
+              <Button
+                size="lg"
+                onClick={() => window.location.href = '/patient/labs/booking'}
+                className="bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-2xl shadow-xl shadow-primary-100 animate-in fade-in slide-in-from-right-4 transition-all hover:scale-105 active:scale-95"
+              >
+                Checkout Now (€{cartTotal})
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 lg:gap-12">
+          {/* Filters Sidebar */}
+          <aside className="lg:col-span-1 space-y-8">
+            <div className="sticky top-8">
+              <div className="flex items-center gap-2 mb-6 px-1">
+                <Filter className="w-5 h-5 text-gray-400" />
+                <h3 className="font-bold text-gray-900">Catalogue Filters</h3>
+              </div>
               <TestFilters
                 search={search}
                 onSearchChange={handleSearchChange}
@@ -117,103 +142,83 @@ export default function LabCatalog() {
                 hasActiveFilters={hasActiveFilters}
               />
             </div>
-            <div className="lg:col-span-3">
-              <Card className="text-center py-12">
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No tests found</h3>
-                <p className="text-gray-600 mb-4">Try adjusting your filters</p>
-                <button
-                  onClick={handleResetFilters}
-                  className="text-primary-600 hover:text-primary-700 font-medium text-sm"
-                >
-                  Clear all filters
-                </button>
-              </Card>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+          </aside>
 
-  // Error state
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <PageHeader title="Lab Tests" subtitle="Browse and book lab tests from home" />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <Card className="text-center py-12 border-red-200 bg-red-50">
-            <h3 className="text-lg font-medium text-red-900 mb-2">Failed to load tests</h3>
-            <p className="text-red-700 mb-4">{error?.data?.message || 'Please try again'}</p>
-            <button
-              onClick={() => refetch()}
-              className="text-red-600 hover:text-red-700 font-medium text-sm"
-            >
-              Try again
-            </button>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-50 pb-32 sm:pb-0">
-      <PageHeader
-        title="Lab Tests"
-        subtitle="Browse and book lab tests from home"
-        actions={[
-          {
-            label: 'View Cart',
-            variant: 'outline',
-            onClick: () => window.location.href = '/patient/labs/booking',
-            disabled: isCartEmpty,
-          },
-        ]}
-      />
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          <div className="lg:col-span-1">
-            <TestFilters
-              search={search}
-              onSearchChange={handleSearchChange}
-              sampleType={sampleType}
-              onSampleTypeChange={handleSampleTypeChange}
-              fastingRequired={fastingRequired}
-              onFastingChange={handleFastingChange}
-              homeCollection={homeCollectionFilter}
-              onHomeCollectionChange={handleHomeCollectionChange}
-              onReset={handleResetFilters}
-              hasActiveFilters={hasActiveFilters}
-            />
-          </div>
-
-          <div className="lg:col-span-3">
-            <div className="mb-6 flex justify-between items-center">
-              <p className="text-sm text-gray-600">
-                {isLoading ? 'Loading...' : `${tests.length} tests found`}
+          {/* Main Content */}
+          <main className="lg:col-span-3">
+            {/* Top Toolbar */}
+            <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-[2rem] border-2 border-gray-50 shadow-sm">
+              <p className="text-sm font-bold text-gray-500 ml-2">
+                {isLoading ? (
+                  <span className="flex items-center gap-2">
+                    <RefreshCcw className="w-4 h-4 animate-spin text-primary-500" />
+                    Synchronizing Catalog...
+                  </span>
+                ) : (
+                  <><span className="text-primary-600">{tests.length}</span> Diagnostic Packages Available</>
+                )}
               </p>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="text-sm border border-gray-300 rounded-lg px-3 py-2"
-              >
-                <option value="popularity">Most Popular</option>
-                <option value="price-asc">Price: Low to High</option>
-                <option value="price-desc">Price: High to Low</option>
-                <option value="rating">Highest Rated</option>
-              </select>
+
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="text-sm font-bold text-gray-700 border-2 border-gray-50 bg-gray-50 rounded-xl px-4 py-2.5 focus:border-primary-100 focus:ring-0 cursor-pointer w-full sm:w-auto hover:bg-gray-100 transition-colors"
+                >
+                  <option value="popularity">Popular Recommendations</option>
+                  <option value="price-asc">Affordable First</option>
+                  <option value="price-desc">Premium Packages</option>
+                  <option value="rating">Top Rated Only</option>
+                </select>
+              </div>
             </div>
 
-            {isLoading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <TestCardSkeleton key={`skeleton-${i}`} />
-                ))}
+            {/* Error State */}
+            {error && (
+              <div className="bg-red-50 border-2 border-red-100 rounded-[2.5rem] p-12 text-center animate-in fade-in slide-in-from-top-4">
+                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-6 text-red-600 shadow-sm">
+                  <Info className="w-8 h-8" />
+                </div>
+                <h3 className="text-xl font-black text-red-900 mb-2">Service Temporarily Unavailable</h3>
+                <p className="text-red-700 mb-8 font-medium">{error?.data?.message || 'We are having trouble connecting to the laboratory services.'}</p>
+                <Button
+                  onClick={() => refetch()}
+                  variant="outline"
+                  className="border-red-200 text-red-700 hover:bg-red-100 font-bold px-8 rounded-xl"
+                >
+                  Retry Connection
+                </Button>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {tests.map((test, index) => (
+            )}
+
+            {/* Empty State */}
+            {!isLoading && !error && tests.length === 0 && (
+              <div className="bg-white border-2 border-dashed border-gray-200 rounded-[2.5rem] p-16 text-center animate-in zoom-in-95 duration-500">
+                <div className="w-20 h-20 bg-gray-50 rounded-3xl flex items-center justify-center mx-auto mb-6 text-gray-300">
+                  <Search className="w-10 h-10" />
+                </div>
+                <h3 className="text-2xl font-black text-gray-900 mb-2">No Matching Diagnostics</h3>
+                <p className="text-gray-500 font-medium max-w-xs mx-auto mb-8">
+                  We couldn't find any tests matching your criteria. Try adjusting your clinical filters or searching for another term.
+                </p>
+                <Button
+                  onClick={handleResetFilters}
+                  variant="outline"
+                  className="border-primary-200 text-primary-700 hover:bg-primary-50 font-bold px-8 rounded-xl"
+                >
+                  Reset All Filters
+                </Button>
+              </div>
+            )}
+
+            {/* Catalog Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {isLoading ? (
+                Array.from({ length: 6 }).map((_, i) => (
+                  <TestCardSkeleton key={`skeleton-${i}`} />
+                ))
+              ) : (
+                tests.map((test, index) => (
                   <TestCard
                     key={test.id || `test-${index}`}
                     test={test}
@@ -221,10 +226,10 @@ export default function LabCatalog() {
                     onAddToCart={handleAddToCart}
                     isLoading={isLoading}
                   />
-                ))}
-              </div>
-            )}
-          </div>
+                ))
+              )}
+            </div>
+          </main>
         </div>
       </div>
 

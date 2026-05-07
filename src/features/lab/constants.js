@@ -14,6 +14,7 @@ export const LAB_ORDER_STATUS = {
   REPORT_READY: 'report_ready',
   CANCELLED: 'cancelled',
   FAILED: 'failed',
+  PAYMENT_PENDING: 'PAYMENT_PENDING',
 };
 
 export const LAB_ORDER_STATUS_LABELS = {
@@ -26,6 +27,7 @@ export const LAB_ORDER_STATUS_LABELS = {
   report_ready: 'Report Ready',
   cancelled: 'Cancelled',
   failed: 'Failed',
+  PAYMENT_PENDING: 'Confirming Payment...',
 };
 
 export const LAB_ORDER_STATUS_COLORS = {
@@ -38,6 +40,7 @@ export const LAB_ORDER_STATUS_COLORS = {
   report_ready: '#4CAF50',
   cancelled: '#F44336',
   failed: '#F44336',
+  PAYMENT_PENDING: '#FF9800',
 };
 
 // Task Status
@@ -290,4 +293,5 @@ export const LAB_ORDER_STATUS_OPTIONS = [
   { value: 'report_ready', label: 'Report Ready' },
   { value: 'cancelled', label: 'Cancelled' },
   { value: 'failed', label: 'Failed' },
+  { value: 'PAYMENT_PENDING', label: 'Confirming Payment' },
 ];

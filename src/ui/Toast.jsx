@@ -29,10 +29,10 @@ export const Toast = React.forwardRef(
     const [isVisible, setIsVisible] = useState(isOpen);
 
     useEffect(() => {
-      if (!isVisible) {
+      if (!isVisible && isOpen) {
         onClose?.();
       }
-    }, [isVisible, onClose]);
+    }, [isVisible, isOpen, onClose]);
 
     useEffect(() => {
       if (!isOpen) {

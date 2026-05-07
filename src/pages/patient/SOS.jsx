@@ -63,23 +63,50 @@ export default function SOS() {
             return;
         }
 
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                setCoords({
-                    latitude: position.coords.latitude,
-                    longitude: position.coords.longitude,
-                    accuracy: position.coords.accuracy
-                });
-                setIsGettingLocation(false);
-                setShowConfirm(true);
-            },
-            (error) => {
-                console.error("Geo error:", error);
+        // Configuration for location retrieval
+        const geoOptions = {
+            enableHighAccuracy: true,
+            timeout: 25000,      // Increased to 25s for high accuracy
+            maximumAge: 300000   // Allow 5 minute old cached location (VITAL for indoor/emergency)
+        };
+
+        const successCallback = (position) => {
+            setCoords({
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+                accuracy: position.coords.accuracy
+            });
+            setIsGettingLocation(false);
+            setShowConfirm(true);
+        };
+
+        const errorCallback = (error) => {
+            console.error("Geo error:", error);
+
+            // If high accuracy failed with timeout, retry with low accuracy immediately
+            if (error.code === error.TIMEOUT || error.code === error.POSITION_UNAVAILABLE) {
+                console.log("Retrying with low accuracy and relaxed constraints...");
+
+                navigator.geolocation.getCurrentPosition(
+                    successCallback,
+                    (retryError) => {
+                        console.error("Final Geo Retry Failure:", retryError);
+                        setLocationError(`Location Error: ${retryError.message}. Please move near a window or outdoors and try again.`);
+                        setIsGettingLocation(false);
+                    },
+                    {
+                        enableHighAccuracy: false,
+                        timeout: 15000,
+                        maximumAge: 600000 // Allow 10 minute old cached location on final attempt
+                    }
+                );
+            } else {
                 setLocationError(`Unable to retrieve location: ${error.message}`);
                 setIsGettingLocation(false);
-            },
-            { enableHighAccuracy: true, timeout: 15000 }
-        );
+            }
+        };
+
+        navigator.geolocation.getCurrentPosition(successCallback, errorCallback, geoOptions);
     };
 
     const handleConfirm = async () => {
@@ -87,7 +114,7 @@ export default function SOS() {
 
         try {
             const result = await createSOS({
-                    pickupLat: coords.latitude,
+                pickupLat: coords.latitude,
                 pickupLng: coords.longitude
             }).unwrap();
 
@@ -172,11 +199,11 @@ export default function SOS() {
                 {/* Fallback Options */}
                 <div className="grid grid-cols-2 gap-3">
                     <a
-                        href="tel:102"
+                        href="tel:15"
                         className="flex items-center justify-center gap-2 p-4 bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow text-gray-800 font-bold border-2 border-green-500 hover:bg-green-50"
                     >
                         <Phone size={22} className="text-green-600 flex-shrink-0" />
-                        <span className="text-sm">Call 102</span>
+                        <span className="text-sm">Call 15</span>
                     </a>
                     <div className="flex items-center justify-center gap-2 p-4 bg-white rounded-xl shadow-md text-gray-800 font-bold border-2 border-blue-500">
                         <MapPin size={22} className="text-blue-600 flex-shrink-0" />

@@ -1,13 +1,23 @@
-/**
- * Force Password Change Page
- * Requires user to change password after first login or password reset
- */
-
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Lock,
+  ShieldCheck,
+  ArrowRight,
+  Activity,
+  ShieldAlert,
+  Eye,
+  EyeOff,
+  CheckCircle2,
+  XCircle,
+  Loader2
+} from 'lucide-react';
+
 import { useChangePasswordMutation } from '../../features/auth/authApi';
 import { clearForcePasswordChange, selectCurrentUser, selectUserRole } from '../../features/auth/authSlice';
 import { getDefaultRouteForRole } from '../../utils/guards';
@@ -35,6 +45,8 @@ const ForcePasswordChange = () => {
   const userRole = useSelector(selectUserRole);
 
   const [changePassword, { isLoading, error }] = useChangePasswordMutation();
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
 
   const {
     register,
@@ -49,203 +61,241 @@ const ForcePasswordChange = () => {
 
   const onSubmit = async (data) => {
     try {
-      console.log('🔐 Changing password...');
-
       await changePassword({
         currentPassword: data.currentPassword,
         newPassword: data.newPassword,
       }).unwrap();
 
-      console.log('✓ Password changed successfully');
-
-      // Clear force password change flag
       dispatch(clearForcePasswordChange());
-
-      // Navigate to user's dashboard
       const defaultRoute = getDefaultRouteForRole(userRole);
       navigate(defaultRoute, { replace: true });
     } catch (err) {
-      console.error('✗ Password change failed:', {
-        status: err?.status,
-        message: err?.data?.message || err?.message,
-      });
+      console.error('Password change failed:', err);
     }
   };
 
-  // Password strength indicator
-  const getPasswordStrength = (password) => {
-    let strength = 0;
-    if (password.length >= 8) strength++;
-    if (password.length >= 12) strength++;
-    if (/[A-Z]/.test(password)) strength++;
-    if (/[a-z]/.test(password)) strength++;
-    if (/[0-9]/.test(password)) strength++;
-    if (/[^A-Za-z0-9]/.test(password)) strength++;
+  const requirements = [
+    { label: '8+ Characters', met: newPassword.length >= 8 },
+    { label: 'Uppercase Letter', met: /[A-Z]/.test(newPassword) },
+    { label: 'Lowercase Letter', met: /[a-z]/.test(newPassword) },
+    { label: 'Number (0-9)', met: /[0-9]/.test(newPassword) },
+    { label: 'Special Character', met: /[^A-Za-z0-9]/.test(newPassword) },
+  ];
 
-    return strength;
-  };
-
-  const passwordStrength = getPasswordStrength(newPassword);
-  const strengthColors = ['bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-lime-500', 'bg-green-500', 'bg-green-600'];
-  const strengthLabels = ['Very Weak', 'Weak', 'Fair', 'Good', 'Strong', 'Very Strong'];
+  const metCount = requirements.filter(r => r.met).length;
+  const strengthPercent = (metCount / requirements.length) * 100;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        {/* Header */}
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Change Your Password
-          </h2>
-          <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <p className="text-sm text-yellow-800">
-                  For security reasons, you must change your password before continuing.
-                </p>
-              </div>
+    <div className="min-h-screen bg-slate-50 flex overflow-hidden font-sans">
+
+      {/* Left Side: Security Context (Hidden on mobile) */}
+      <div className="hidden lg:flex lg:w-1/3 bg-indigo-900 relative items-center justify-center p-12 overflow-hidden shadow-2xl z-10">
+        {/* Abstract Background */}
+        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-white/5 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-black/20 rounded-full blur-[80px] translate-y-1/2 -translate-x-1/2" />
+
+        <div className="relative z-10 space-y-12">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center gap-4"
+          >
+            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-lg">
+              <Activity className="text-indigo-600 h-7 w-7" />
             </div>
+            <span className="text-xl font-black text-white uppercase tracking-[0.2em]">MediBridge</span>
+          </motion.div>
+
+          <div className="space-y-6">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              <h2 className="text-4xl font-black text-white leading-tight font-display mb-4">
+                Protocol <br />
+                <span className="text-indigo-300">Security Upgrade.</span>
+              </h2>
+              <p className="text-indigo-100/70 font-medium leading-relaxed">
+                As part of our periodic safety review, we require all users to initialize a new cryptographic identity key.
+              </p>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="p-6 bg-white/10 backdrop-blur-md rounded-[2rem] border border-white/10 space-y-4"
+            >
+              <div className="flex items-center gap-3">
+                <ShieldAlert className="text-indigo-300" />
+                <span className="text-xs font-black text-white uppercase tracking-widest">Compulsory Action</span>
+              </div>
+              <p className="text-sm text-white/80 font-medium leading-relaxed">
+                Your account is currently in a "Secondary Auth" state. Change your password to restore full platform functionality.
+              </p>
+            </motion.div>
           </div>
-        </div>
 
-        {/* Password Change Form */}
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
-          <div className="rounded-md shadow-sm space-y-4">
-            {/* Current Password */}
-            <div>
-              <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700 mb-1">
-                Current Password
-              </label>
-              <input
-                id="currentPassword"
-                type="password"
-                autoComplete="current-password"
-                {...register('currentPassword')}
-                className={`appearance-none rounded-lg relative block w-full px-3 py-2 border ${
-                  errors.currentPassword ? 'border-red-500' : 'border-gray-300'
-                } placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm`}
-                placeholder="Enter your current password"
-              />
-              {errors.currentPassword && (
-                <p className="mt-1 text-sm text-red-600">{errors.currentPassword.message}</p>
-              )}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6 }}
+            className="pt-8 border-t border-white/10"
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <ShieldCheck className="text-emerald-400 h-5 w-5" />
+              <span className="text-xs font-black text-emerald-400 uppercase tracking-widest font-display">System Secure [AES-256]</span>
             </div>
+          </motion.div>
+        </div>
+      </div>
 
-            {/* New Password */}
-            <div>
-              <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-1">
-                New Password
-              </label>
-              <input
-                id="newPassword"
-                type="password"
-                autoComplete="new-password"
-                {...register('newPassword')}
-                className={`appearance-none rounded-lg relative block w-full px-3 py-2 border ${
-                  errors.newPassword ? 'border-red-500' : 'border-gray-300'
-                } placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm`}
-                placeholder="Enter your new password"
-              />
-              {errors.newPassword && (
-                <p className="mt-1 text-sm text-red-600">{errors.newPassword.message}</p>
-              )}
+      {/* Right Side: Form */}
+      <div className="flex-1 flex flex-col justify-center p-6 lg:p-24 bg-white relative">
+        <div className="max-w-md w-full mx-auto space-y-10">
 
-              {/* Password Strength Indicator */}
-              {newPassword && (
-                <div className="mt-2">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs text-gray-600">Password Strength:</span>
-                    <span className={`text-xs font-medium ${strengthColors[passwordStrength - 1]?.replace('bg-', 'text-')}`}>
-                      {strengthLabels[passwordStrength - 1]}
+          <div className="space-y-2">
+            <h3 className="text-3xl font-black text-slate-900 tracking-tight">Set New Password</h3>
+            <p className="text-slate-500 font-medium italic">Identity: <span className="text-indigo-600 font-bold">{user?.username || user?.email}</span></p>
+          </div>
+
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+            <div className="space-y-6">
+              {/* Current Password */}
+              <div className="space-y-2">
+                <label className="text-xs font-black uppercase text-slate-400 tracking-widest block">Current Access Key</label>
+                <div className="relative group">
+                  <input
+                    {...register('currentPassword')}
+                    type={showCurrent ? "text" : "password"}
+                    placeholder="Enter current password"
+                    className={`w-full bg-slate-50 border-2 ${errors.currentPassword ? 'border-red-500' : 'border-slate-100'} rounded-2xl py-4 px-6 outline-none focus:border-indigo-600 focus:bg-white transition-all font-medium text-slate-900 placeholder:text-slate-400`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrent(!showCurrent)}
+                    className="absolute inset-y-0 right-4 flex items-center text-slate-400 hover:text-indigo-600 transition-colors"
+                  >
+                    {showCurrent ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+                {errors.currentPassword && (
+                  <p className="text-xs font-bold text-red-500 tracking-tight">{errors.currentPassword.message}</p>
+                )}
+              </div>
+
+              {/* New Password */}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-black uppercase text-slate-400 tracking-widest block">New Cryptic Key</label>
+                  <div className="relative group">
+                    <input
+                      {...register('newPassword')}
+                      type={showNew ? "text" : "password"}
+                      placeholder="Generate new password"
+                      className={`w-full bg-slate-50 border-2 ${errors.newPassword ? 'border-red-500' : 'border-slate-100'} rounded-2xl py-4 px-6 outline-none focus:border-indigo-600 focus:bg-white transition-all font-medium text-slate-900 placeholder:text-slate-400`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNew(!showNew)}
+                      className="absolute inset-y-0 right-4 flex items-center text-slate-400 hover:text-indigo-600 transition-colors"
+                    >
+                      {showNew ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                  {errors.newPassword && (
+                    <p className="text-xs font-bold text-red-500 tracking-tight">{errors.newPassword.message}</p>
+                  )}
+                </div>
+
+                {/* Password Strength Visual */}
+                <div className="space-y-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Strength Matrix</span>
+                    <span className={`text-[10px] font-black uppercase tracking-widest ${metCount >= 5 ? 'text-emerald-500' : metCount >= 3 ? 'text-amber-500' : 'text-slate-400'}`}>
+                      {metCount >= 5 ? 'Elite' : metCount >= 3 ? 'Standard' : 'Initialization...'}
                     </span>
                   </div>
-                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full ${strengthColors[passwordStrength - 1]} transition-all duration-300`}
-                      style={{ width: `${(passwordStrength / 6) * 100}%` }}
-                    />
+                  <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden flex gap-1">
+                    {[...Array(5)].map((_, i) => (
+                      <div
+                        key={i}
+                        className={`h-full flex-1 rounded-full transition-all duration-500 ${i < metCount
+                          ? (metCount >= 5 ? 'bg-emerald-500 shadow-sm shadow-emerald-200' : metCount >= 3 ? 'bg-amber-500' : 'bg-red-500')
+                          : 'bg-slate-200'
+                          }`}
+                      />
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-2 pt-1">
+                    {requirements.map((req, i) => (
+                      <div key={i} className={`flex items-center gap-2 text-[10px] font-bold ${req.met ? 'text-emerald-600' : 'text-slate-300'}`}>
+                        {req.met ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
+                        {req.label}
+                      </div>
+                    ))}
                   </div>
                 </div>
-              )}
-            </div>
+              </div>
 
-            {/* Confirm Password */}
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
-                Confirm New Password
-              </label>
-              <input
-                id="confirmPassword"
-                type="password"
-                autoComplete="new-password"
-                {...register('confirmPassword')}
-                className={`appearance-none rounded-lg relative block w-full px-3 py-2 border ${
-                  errors.confirmPassword ? 'border-red-500' : 'border-gray-300'
-                } placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm`}
-                placeholder="Confirm your new password"
-              />
-              {errors.confirmPassword && (
-                <p className="mt-1 text-sm text-red-600">{errors.confirmPassword.message}</p>
-              )}
-            </div>
-          </div>
-
-          {/* Password Requirements */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <p className="text-sm font-medium text-blue-900 mb-2">Password Requirements:</p>
-            <ul className="text-xs text-blue-800 space-y-1 list-disc list-inside">
-              <li>At least 8 characters long</li>
-              <li>Contains at least one uppercase letter (A-Z)</li>
-              <li>Contains at least one lowercase letter (a-z)</li>
-              <li>Contains at least one number (0-9)</li>
-              <li>Contains at least one special character (!@#$%^&*)</li>
-            </ul>
-          </div>
-
-          {/* Error Message */}
-          {error && (
-            <div className="rounded-md bg-red-50 p-4">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm text-red-700">
-                    {error?.data?.message || 'Failed to change password. Please try again.'}
-                  </p>
-                </div>
+              {/* Confirm Password */}
+              <div className="space-y-2">
+                <label className="text-xs font-black uppercase text-slate-400 tracking-widest block">Repeat Key</label>
+                <input
+                  {...register('confirmPassword')}
+                  type="password"
+                  placeholder="Verify new key"
+                  className={`w-full bg-slate-50 border-2 ${errors.confirmPassword ? 'border-red-500' : 'border-slate-100'} rounded-2xl py-4 px-6 outline-none focus:border-indigo-600 focus:bg-white transition-all font-medium text-slate-900 placeholder:text-slate-400`}
+                />
+                {errors.confirmPassword && (
+                  <p className="text-xs font-bold text-red-500 tracking-tight">{errors.confirmPassword.message}</p>
+                )}
               </div>
             </div>
-          )}
 
-          {/* Submit Button */}
-          <div>
+            {/* Error Message */}
+            <AnimatePresence>
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="bg-red-50 border border-red-100 rounded-2xl p-4 flex gap-3 items-center"
+                >
+                  <ShieldAlert className="text-red-500 h-5 w-5 flex-shrink-0" />
+                  <p className="text-xs font-bold text-red-700">
+                    {error?.data?.message || 'Access key update failed. Please try again.'}
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             <button
               type="submit"
-              disabled={isLoading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isLoading || metCount < requirements.length}
+              className="w-full bg-indigo-600 text-white rounded-2xl py-4 font-black flex items-center justify-center gap-2 hover:bg-indigo-700 active:scale-[0.98] transition-all shadow-xl shadow-indigo-100 disabled:opacity-50 disabled:pointer-events-none"
             >
               {isLoading ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Changing Password...
-                </>
+                <Loader2 className="animate-spin h-5 w-5" />
               ) : (
-                'Change Password'
+                <>
+                  Synchronize Access Key
+                  <ArrowRight size={18} />
+                </>
               )}
             </button>
+          </form>
+
+          {/* Footer Branding */}
+          <div className="pt-8 flex justify-between items-center text-[10px] font-black text-slate-400 uppercase tracking-widest border-t border-slate-100">
+            <span>© 2026 MediBridge IQ</span>
+            <div className="flex gap-4">
+              <span className="cursor-pointer hover:text-slate-600">Protocol Vault</span>
+              <span className="cursor-pointer hover:text-slate-600">Legal Core</span>
+            </div>
           </div>
-        </form>
+
+        </div>
       </div>
     </div>
   );

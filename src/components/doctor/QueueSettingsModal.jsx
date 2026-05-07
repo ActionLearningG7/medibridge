@@ -78,11 +78,10 @@ const QueueSettingsModal = ({ currentSettings, onSave, onClose }) => {
               onChange={handleChange}
               min="5"
               max="120"
-              className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${
-                errors.avgConsultationMinutes
+              className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${errors.avgConsultationMinutes
                   ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
                   : 'border-gray-300 focus:border-primary-500 focus:ring-primary-500'
-              }`}
+                }`}
             />
             {errors.avgConsultationMinutes && (
               <p className="mt-1 text-sm text-red-600">{errors.avgConsultationMinutes}</p>

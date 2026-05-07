@@ -19,6 +19,13 @@ import {
   useCallNextPatientMutation,
   useGetTodayQueueQuery,
   useGetQueueEntriesQuery,
+  usePauseQueueMutation,
+  useResumeQueueMutation,
+  useCloseQueueMutation,
+  useCompleteQueueEntryMutation,
+  useMarkNoShowMutation,
+  useSkipPatientMutation,
+  useUpdateQueueSettingsMutation,
 } from '../../features/appointment/appointmentApi';
 import { useStartVideoSessionMutation } from '../../features/appointment/consultationApi';
 import { useDoctorQueueSocket } from '../../hooks/useQueueSocket';
@@ -64,6 +71,13 @@ const DoctorQueueConsole = () => {
   // Mutations
   const [openQueue, { isLoading: isOpening }] = useOpenDoctorQueueMutation();
   const [callNext, { isLoading: isCalling }] = useCallNextPatientMutation();
+  const [pauseQueue] = usePauseQueueMutation();
+  const [resumeQueue] = useResumeQueueMutation();
+  const [closeQueue] = useCloseQueueMutation();
+  const [completeEntry] = useCompleteQueueEntryMutation();
+  const [markNoShow] = useMarkNoShowMutation();
+  const [skipPatient] = useSkipPatientMutation();
+  const [updateSettings] = useUpdateQueueSettingsMutation();
   const [startVideo, { isLoading: isStartingVideo }] = useStartVideoSessionMutation();
 
   // Extract queue status and ID from fetched data
@@ -150,17 +164,25 @@ const DoctorQueueConsole = () => {
       message: 'Are you sure you want to pause the queue? Patients cannot join while paused.',
       type: 'warning',
       confirmText: 'Yes, Pause',
-      onConfirm: () => {
-        // TODO: Implement pause queue API endpoint
-        showToast.info('Pause queue feature coming soon. Backend API needed.');
-        setConfirmAction(null);
+      onConfirm: async () => {
+        try {
+          await pauseQueue(currentQueueId).unwrap();
+          showToast.success('Queue paused');
+          setConfirmAction(null);
+        } catch (error) {
+          showToast.error(error?.data?.message || 'Failed to pause queue');
+        }
       },
     });
   };
 
-  const handleResumeQueue = () => {
-    // TODO: Implement resume queue API endpoint
-    showToast.info('Resume queue feature coming soon. Backend API needed.');
+  const handleResumeQueue = async () => {
+    try {
+      await resumeQueue(currentQueueId).unwrap();
+      showToast.success('Queue resumed');
+    } catch (error) {
+      showToast.error(error?.data?.message || 'Failed to resume queue');
+    }
   };
 
   const handleCloseQueue = () => {
@@ -170,10 +192,15 @@ const DoctorQueueConsole = () => {
         'Are you sure you want to close the queue? This will end today\'s session. Waiting patients will be notified.',
       type: 'danger',
       confirmText: 'Yes, Close Queue',
-      onConfirm: () => {
-        // TODO: Implement close queue API endpoint
-        showToast.info('Close queue feature coming soon. Backend API needed.');
-        setConfirmAction(null);
+      onConfirm: async () => {
+        try {
+          await closeQueue(currentQueueId).unwrap();
+          showToast.success('Queue closed');
+          setCurrentPatient(null);
+          setConfirmAction(null);
+        } catch (error) {
+          showToast.error(error?.data?.message || 'Failed to close queue');
+        }
       },
     });
   };
@@ -237,7 +264,7 @@ const DoctorQueueConsole = () => {
       onConfirm: async () => {
         try {
           console.log('📞 [QueueConsole] Starting video consultation for entry:', entry);
-          
+
           // Call start-video API
           const result = await startVideo({
             queueEntryId: entry.id,
@@ -245,7 +272,7 @@ const DoctorQueueConsole = () => {
           }).unwrap();
 
           console.log('✅ [QueueConsole] Video session started:', result);
-          
+
           // Show success toast
           showToast.success('Video consultation started');
 
@@ -258,6 +285,7 @@ const DoctorQueueConsole = () => {
               patientId: entry.patientId,
               patientName: entry.patientName,
               queueEntryId: entry.id,
+              appointmentId: entry.appointmentId,
             },
             replace: true, // Replace history to prevent back navigation during call
           });
@@ -265,7 +293,7 @@ const DoctorQueueConsole = () => {
           setConfirmAction(null);
         } catch (error) {
           console.error('❌ [QueueConsole] Failed to start video:', error);
-          
+
           let errorMessage = 'Failed to start consultation';
           if (error?.status === 400) {
             // Try to get the actual backend error message
@@ -277,7 +305,7 @@ const DoctorQueueConsole = () => {
           } else if (error?.data?.message) {
             errorMessage = error.data.message;
           }
-          
+
           showToast.error(errorMessage);
           setConfirmAction(null);
         }
@@ -291,10 +319,15 @@ const DoctorQueueConsole = () => {
       message: `Mark consultation with ${entry.patientName || `Token #${entry.tokenNumber}`} as complete?`,
       type: 'success',
       confirmText: 'Complete',
-      onConfirm: () => {
-        // TODO: Implement complete consultation API endpoint
-        showToast.info('Complete consultation feature coming soon. Backend API needed.');
-        setConfirmAction(null);
+      onConfirm: async () => {
+        try {
+          await completeEntry(entry.id).unwrap();
+          showToast.success('Consultation completed');
+          if (currentPatient?.id === entry.id) setCurrentPatient(null);
+          setConfirmAction(null);
+        } catch (error) {
+          showToast.error(error?.data?.message || 'Failed to complete consultation');
+        }
       },
     });
   };
@@ -305,10 +338,15 @@ const DoctorQueueConsole = () => {
       message: `Mark ${entry.patientName || `Token #${entry.tokenNumber}`} as no show? This cannot be undone.`,
       type: 'danger',
       confirmText: 'Mark No Show',
-      onConfirm: () => {
-        // TODO: Implement no-show API endpoint
-        showToast.info('No-show feature coming soon. Backend API needed.');
-        setConfirmAction(null);
+      onConfirm: async () => {
+        try {
+          await markNoShow(entry.id).unwrap();
+          showToast.success('Patient marked as no-show');
+          if (currentPatient?.id === entry.id) setCurrentPatient(null);
+          setConfirmAction(null);
+        } catch (error) {
+          showToast.error(error?.data?.message || 'Failed to mark no-show');
+        }
       },
     });
   };
@@ -319,18 +357,30 @@ const DoctorQueueConsole = () => {
       message: `Skip ${entry.patientName || `Token #${entry.tokenNumber}`}? They will be moved to the end of the queue.`,
       type: 'warning',
       confirmText: 'Skip',
-      onConfirm: () => {
-        // TODO: Implement skip patient API endpoint
-        showToast.info('Skip patient feature coming soon. Backend API needed.');
-        setConfirmAction(null);
+      onConfirm: async () => {
+        try {
+          await skipPatient(entry.id).unwrap();
+          showToast.success('Patient skipped');
+          if (currentPatient?.id === entry.id) setCurrentPatient(null);
+          setConfirmAction(null);
+        } catch (error) {
+          showToast.error(error?.data?.message || 'Failed to skip patient');
+        }
       },
     });
   };
 
-  const handleSaveSettings = (settings) => {
-    // TODO: Implement save queue settings API endpoint
-    showToast.info('Settings save feature coming soon. Backend API needed.');
-    setShowSettingsModal(false);
+  const handleSaveSettings = async (settings) => {
+    try {
+      await updateSettings({
+        queueId: currentQueueId,
+        settings
+      }).unwrap();
+      showToast.success('Queue settings updated');
+      setShowSettingsModal(false);
+    } catch (error) {
+      showToast.error(error?.data?.message || 'Failed to update settings');
+    }
   };
 
   return (
@@ -409,13 +459,12 @@ const DoctorQueueConsole = () => {
           {/* WebSocket Connection Status */}
           {currentQueueId && (
             <div className="mb-4">
-              <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium ${
-                wsConnected
-                  ? 'bg-green-50 text-green-700 border border-green-200'
-                  : isPolling
+              <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium ${wsConnected
+                ? 'bg-green-50 text-green-700 border border-green-200'
+                : isPolling
                   ? 'bg-yellow-50 text-yellow-700 border border-yellow-200'
                   : 'bg-gray-50 text-gray-700 border border-gray-200'
-              }`}>
+                }`}>
                 {wsConnected ? (
                   <>
                     <Wifi className="h-3 w-3" />
@@ -438,145 +487,145 @@ const DoctorQueueConsole = () => {
 
           {/* Statistics */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-        <MetricCard
-          title="Total Today"
-          value={stats.total}
-          icon={Users}
-          iconColor="text-blue-600"
-          iconBgColor="bg-blue-100"
-        />
-        <MetricCard
-          title="Waiting"
-          value={stats.waiting}
-          icon={Clock}
-          iconColor="text-yellow-600"
-          iconBgColor="bg-yellow-100"
-        />
-        <MetricCard
-          title="Called"
-          value={stats.called}
-          icon={AlertCircle}
-          iconColor="text-blue-600"
-          iconBgColor="bg-blue-100"
-        />
-        <MetricCard
-          title="In Progress"
-          value={stats.serving}
-          icon={Users}
-          iconColor="text-purple-600"
-          iconBgColor="bg-purple-100"
-        />
-        <MetricCard
-          title="Completed"
-          value={stats.completed}
-          icon={CheckCircle}
-          iconColor="text-green-600"
-          iconBgColor="bg-green-100"
-        />
-      </div>
-
-      {/* Queue Controls */}
-      <div className="mb-6">
-        <QueueControls
-          queueStatus={queueStatus}
-          onOpen={handleOpenQueue}
-          onPause={queueStatus === 'OPEN' ? handlePauseQueue : handleResumeQueue}
-          onClose={handleCloseQueue}
-          onCallNext={handleCallNext}
-          onSettings={() => setShowSettingsModal(true)}
-          isOpening={isOpening}
-          isCalling={isCalling}
-          stats={stats}
-        />
-      </div>
-
-      {/* Current Patient Section */}
-      {currentPatient && (
-        <div className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="h-12 w-12 rounded-full bg-blue-600 flex items-center justify-center">
-                  <span className="text-2xl font-bold text-white">
-                    {currentPatient.tokenNumber}
-                  </span>
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Current Patient</h3>
-                  <p className="text-sm text-gray-600">
-                    {currentPatient.patientName} • ID: {currentPatient.patientId}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-4 mt-3 text-sm text-gray-700">
-                <span className="inline-flex items-center">
-                  <Clock className="h-4 w-4 mr-1" />
-                  {currentPatient.appointmentTime}
-                </span>
-                {currentPatient.priority === 'EMERGENCY' && (
-                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">
-                    <AlertCircle className="h-3 w-3 mr-1" />
-                    Emergency
-                  </span>
-                )}
-              </div>
-            </div>
-
-            <QueueEntryActions
-              entry={currentPatient}
-              onCall={() => {}}
-              onStart={handleStartConsultation}
-              onComplete={handleCompleteConsultation}
-              onNoShow={handleNoShow}
-              onSkip={handleSkip}
-              isCurrentPatient={true}
+            <MetricCard
+              title="Total Today"
+              value={stats.total}
+              icon={Users}
+              iconColor="text-blue-600"
+              iconBgColor="bg-blue-100"
+            />
+            <MetricCard
+              title="Waiting"
+              value={stats.waiting}
+              icon={Clock}
+              iconColor="text-yellow-600"
+              iconBgColor="bg-yellow-100"
+            />
+            <MetricCard
+              title="Called"
+              value={stats.called}
+              icon={AlertCircle}
+              iconColor="text-blue-600"
+              iconBgColor="bg-blue-100"
+            />
+            <MetricCard
+              title="In Progress"
+              value={stats.serving}
+              icon={Users}
+              iconColor="text-purple-600"
+              iconBgColor="bg-purple-100"
+            />
+            <MetricCard
+              title="Completed"
+              value={stats.completed}
+              icon={CheckCircle}
+              iconColor="text-green-600"
+              iconBgColor="bg-green-100"
             />
           </div>
-        </div>
-      )}
 
-      {/* Call Next Button (if no current patient) */}
-      {!currentPatient && queueStatus === 'OPEN' && stats.waiting > 0 && (
-        <div className="mb-6">
-          <button
-            onClick={handleCallNext}
-            disabled={isCalling}
-            className="w-full py-4 bg-primary-600 text-white text-lg font-semibold rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-          >
-            {isCalling ? 'Calling...' : `Call Next Patient (${stats.waiting} waiting)`}
-          </button>
-        </div>
-      )}
-
-      {/* Queue Table */}
-      <QueueTable
-        entries={queueEntries}
-        onStart={handleStartConsultation}
-        onComplete={handleCompleteConsultation}
-        onNoShow={handleNoShow}
-        onSkip={handleSkip}
-        avgConsultationMinutes={avgConsultationMinutes}
-      />
-
-      {/* Queue Closed State */}
-      {queueStatus === 'CLOSED' && (
-        <div className="mt-6 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 p-12">
-          <div className="text-center">
-            <Users className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Queue is Closed</h3>
-            <p className="text-sm text-gray-500 mb-6">
-              Open the queue to start accepting patients for today's consultation.
-            </p>
-            <button
-              onClick={handleOpenQueue}
-              disabled={isOpening}
-              className="px-6 py-3 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
-            >
-              {isOpening ? 'Opening...' : 'Open Queue for Today'}
-            </button>
+          {/* Queue Controls */}
+          <div className="mb-6">
+            <QueueControls
+              queueStatus={queueStatus}
+              onOpen={handleOpenQueue}
+              onPause={queueStatus === 'OPEN' ? handlePauseQueue : handleResumeQueue}
+              onClose={handleCloseQueue}
+              onCallNext={handleCallNext}
+              onSettings={() => setShowSettingsModal(true)}
+              isOpening={isOpening}
+              isCalling={isCalling}
+              stats={stats}
+            />
           </div>
-        </div>
-      )}
+
+          {/* Current Patient Section */}
+          {currentPatient && (
+            <div className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="h-12 w-12 rounded-full bg-blue-600 flex items-center justify-center">
+                      <span className="text-2xl font-bold text-white">
+                        {currentPatient.tokenNumber}
+                      </span>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">Current Patient</h3>
+                      <p className="text-sm text-gray-600">
+                        {currentPatient.patientName} • ID: {currentPatient.patientId}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 mt-3 text-sm text-gray-700">
+                    <span className="inline-flex items-center">
+                      <Clock className="h-4 w-4 mr-1" />
+                      {currentPatient.appointmentTime}
+                    </span>
+                    {currentPatient.priority === 'EMERGENCY' && (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">
+                        <AlertCircle className="h-3 w-3 mr-1" />
+                        Emergency
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <QueueEntryActions
+                  entry={currentPatient}
+                  onCall={() => { }}
+                  onStart={handleStartConsultation}
+                  onComplete={handleCompleteConsultation}
+                  onNoShow={handleNoShow}
+                  onSkip={handleSkip}
+                  isCurrentPatient={true}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Call Next Button (if no current patient) */}
+          {!currentPatient && queueStatus === 'OPEN' && stats.waiting > 0 && (
+            <div className="mb-6">
+              <button
+                onClick={handleCallNext}
+                disabled={isCalling}
+                className="w-full py-4 bg-primary-600 text-white text-lg font-semibold rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+              >
+                {isCalling ? 'Calling...' : `Call Next Patient (${stats.waiting} waiting)`}
+              </button>
+            </div>
+          )}
+
+          {/* Queue Table */}
+          <QueueTable
+            entries={queueEntries}
+            onStart={handleStartConsultation}
+            onComplete={handleCompleteConsultation}
+            onNoShow={handleNoShow}
+            onSkip={handleSkip}
+            avgConsultationMinutes={avgConsultationMinutes}
+          />
+
+          {/* Queue Closed State */}
+          {queueStatus === 'CLOSED' && (
+            <div className="mt-6 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 p-12">
+              <div className="text-center">
+                <Users className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Queue is Closed</h3>
+                <p className="text-sm text-gray-500 mb-6">
+                  Open the queue to start accepting patients for today's consultation.
+                </p>
+                <button
+                  onClick={handleOpenQueue}
+                  disabled={isOpening}
+                  className="px-6 py-3 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                >
+                  {isOpening ? 'Opening...' : 'Open Queue for Today'}
+                </button>
+              </div>
+            </div>
+          )}
         </>
       )}
 
@@ -598,15 +647,14 @@ const DoctorQueueConsole = () => {
             <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
               <div className="flex items-start gap-3 mb-4">
                 <AlertCircle
-                  className={`h-6 w-6 flex-shrink-0 mt-0.5 ${
-                    confirmAction.type === 'danger'
-                      ? 'text-red-600'
-                      : confirmAction.type === 'warning'
+                  className={`h-6 w-6 flex-shrink-0 mt-0.5 ${confirmAction.type === 'danger'
+                    ? 'text-red-600'
+                    : confirmAction.type === 'warning'
                       ? 'text-yellow-600'
                       : confirmAction.type === 'success'
-                      ? 'text-green-600'
-                      : 'text-blue-600'
-                  }`}
+                        ? 'text-green-600'
+                        : 'text-blue-600'
+                    }`}
                 />
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">{confirmAction.title}</h3>
@@ -623,15 +671,14 @@ const DoctorQueueConsole = () => {
                 </button>
                 <button
                   onClick={confirmAction.onConfirm}
-                  className={`px-4 py-2 text-white text-sm font-medium rounded-md transition-colors ${
-                    confirmAction.type === 'danger'
-                      ? 'bg-red-600 hover:bg-red-700'
-                      : confirmAction.type === 'warning'
+                  className={`px-4 py-2 text-white text-sm font-medium rounded-md transition-colors ${confirmAction.type === 'danger'
+                    ? 'bg-red-600 hover:bg-red-700'
+                    : confirmAction.type === 'warning'
                       ? 'bg-yellow-600 hover:bg-yellow-700'
                       : confirmAction.type === 'success'
-                      ? 'bg-green-600 hover:bg-green-700'
-                      : 'bg-blue-600 hover:bg-blue-700'
-                  }`}
+                        ? 'bg-green-600 hover:bg-green-700'
+                        : 'bg-blue-600 hover:bg-blue-700'
+                    }`}
                 >
                   {confirmAction.confirmText}
                 </button>

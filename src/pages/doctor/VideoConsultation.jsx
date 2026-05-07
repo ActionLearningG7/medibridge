@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import CallLayout from '../../components/video/CallLayout';
+import ConsultationSidePanel from '../../components/appointment/ConsultationSidePanel';
 import {
   useGetDoctorActiveVideoQuery,
   useStartVideoSessionMutation,
@@ -9,7 +10,6 @@ import {
 } from '../../features/appointment/consultationApi';
 import useWebrtcSocket from '../../hooks/useWebrtcSocket';
 import useWebrtcPeer from '../../hooks/useWebrtcPeer';
-import PrescriptionBuilder from '../../components/prescription/PrescriptionBuilder';
 
 /**
  * Doctor Video Consultation Page (CALLER FLOW)
@@ -35,6 +35,7 @@ const DoctorVideoConsultation = () => {
     patientId: location.state.patientId,
     patientName: location.state.patientName,
     queueEntryId: location.state.queueEntryId,
+    appointmentId: location.state.appointmentId,
   } : null;
 
   // Get queue entry ID from navigation state (if starting from queue console)
@@ -46,7 +47,7 @@ const DoctorVideoConsultation = () => {
   const [showStartButton, setShowStartButton] = useState(false);
   const [error, setError] = useState(null);
   const [sessionInitialized, setSessionInitialized] = useState(!!navigationSession); // Track if we have an initial session
-  const [showPrescriptionDrawer, setShowPrescriptionDrawer] = useState(false);
+  const [showConsultationPanel, setShowConsultationPanel] = useState(false);
 
   // Refs to prevent stale closures
   const webrtcHandlersRef = useRef(null);
@@ -331,6 +332,7 @@ const DoctorVideoConsultation = () => {
 
 
   console.log("signal :: " + isSignalingConnected);
+  console.log('🔍 [Debug] connectionStatus:', connectionStatus, 'hasRemoteStream:', !!remoteStream, 'webrtcStatus:', webrtcStatus);
 
   // Signaling status indicator
   const signalingStatusText = isSignalingConnected
@@ -447,42 +449,42 @@ const DoctorVideoConsultation = () => {
         connectionQuality="good"
       />
 
-      {/* Prescription Button (Doctor Only) */}
-      {connectionStatus === 'connected' && (
-        <div className="absolute bottom-24 right-6 z-40">
+      {/* Consultation Tools Button (Doctor Only) - Always visible during consultation */}
+      {!showStartButton && (
+        <div className="absolute bottom-10 right-10 z-40">
           <button
-            onClick={() => setShowPrescriptionDrawer(true)}
-            className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-4 py-3 rounded-full shadow-lg transition-transform transform hover:scale-105 font-medium"
+            onClick={() => {
+              console.log('🔧 [Doctor] Opening consultation workspace');
+              setShowConsultationPanel(true);
+            }}
+            className="group relative flex items-center gap-3 bg-gradient-to-br from-indigo-600 to-blue-700 hover:from-indigo-500 hover:to-blue-600 text-white px-6 py-4 rounded-2xl shadow-[0_10px_25px_-5px_rgba(59,130,246,0.5)] transition-all duration-300 transform hover:scale-105 hover:-translate-y-1 active:scale-95 font-bold tracking-wide"
+            title="Open consultation workspace (Prescriptions, Labs, Notes)"
           >
-            <svg itemType="pill" className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-            </svg>
-            Prescription
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-400 to-indigo-400 rounded-2xl blur opacity-30 group-hover:opacity-50 transition duration-1000 group-hover:duration-200 animate-pulse"></div>
+            <div className="relative flex items-center gap-3">
+              <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+              </div>
+              <span className="text-lg">Workspace</span>
+              <kbd className="hidden md:inline-flex items-center justify-center px-2 py-1 text-xs font-semibold text-blue-100 bg-blue-800/50 rounded-md border border-blue-400/30 ml-2">
+                Ctrl + K
+              </kbd>
+            </div>
           </button>
         </div>
       )}
 
-      {/* Prescription Drawer */}
-      {(showPrescriptionDrawer) && (
-        <div className="fixed inset-0 z-50 overflow-hidden">
-          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm transition-opacity" onClick={() => setShowPrescriptionDrawer(false)} />
-          <div className="fixed inset-y-0 right-0 flex max-w-full pl-10">
-            <div className="w-screen max-w-2xl transform transition-transform bg-white shadow-xl flex flex-col h-full animate-slide-in-right">
-              <div className="flex-1 overflow-y-auto">
-                <PrescriptionBuilder
-                  initialPatientId={(activeSession || navigationSession)?.patientId}
-                  initialAppointmentId={(activeSession || navigationSession)?.consultationId || (activeSession || navigationSession)?.appointmentId || (activeSession || navigationSession)?.queueEntryId}
-                  onCancel={() => setShowPrescriptionDrawer(false)}
-                  onSuccess={() => {
-                    setShowPrescriptionDrawer(false);
-                    // Optional: show a success toast here if the builder doesn't (it does)
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Consultation Side Panel */}
+      <ConsultationSidePanel
+        isOpen={showConsultationPanel}
+        onClose={() => setShowConsultationPanel(false)}
+        consultationId={(activeSession || navigationSession)?.consultationId}
+        initialAppointmentId={(activeSession || navigationSession)?.appointmentId || (activeSession || navigationSession)?.consultationId}
+        initialPatientId={(activeSession || navigationSession)?.patientId}
+        remoteParticipantName={remoteParticipantName}
+      />
     </div>
   );
 };

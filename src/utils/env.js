@@ -12,6 +12,7 @@ export const env = {
   labService: process.env.REACT_APP_LAB_SERVICE_BASE_URL || 'http://localhost:8084',
   reportsService: process.env.REACT_APP_REPORTS_SERVICE_BASE_URL || 'http://localhost:8085',
   sosService: process.env.REACT_APP_SOS_AMBULANCE_SERVICE_BASE_URL || 'http://localhost:8086',
+  paymentService: process.env.REACT_APP_PAYMENT_SERVICE_BASE_URL || 'http://localhost:8080',
 
   // WebSocket URLs
   appointmentWs: process.env.REACT_APP_APPOINTMENT_WS_URL || 'ws://localhost:8080/ws',

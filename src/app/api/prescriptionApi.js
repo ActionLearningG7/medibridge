@@ -85,6 +85,20 @@ export const prescriptionApi = createApi({
             }),
             invalidatesTags: (result, error, id) => [{ type: 'Prescription', id }],
         }),
+
+        // Admin: Get All Prescriptions
+        getAdminPrescriptions: builder.query({
+            query: (params) => ({
+                url: '/api/v1/admin/orders/prescriptions',
+                params: {
+                    page: params?.page || 0,
+                    size: params?.size || 10,
+                    sort: params?.sort || 'createdAt,desc',
+                    ...params
+                },
+            }),
+            providesTags: ['Prescription'],
+        }),
     }),
 });
 
@@ -95,6 +109,7 @@ export const {
     useCreatePrescriptionMutation,
     useUpdatePrescriptionMutation,
     useIssuePrescriptionMutation,
+    useGetAdminPrescriptionsQuery,
 } = prescriptionApi;
 
 export default prescriptionApi;

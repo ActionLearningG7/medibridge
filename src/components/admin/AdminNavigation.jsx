@@ -3,7 +3,7 @@
  */
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Users, Truck, AlertCircle, BarChart3, Settings, LogOut, Menu, X, Stethoscope, Briefcase, TestTubes, ClipboardList } from 'lucide-react';
+import { Users, Truck, AlertCircle, BarChart3, Settings, LogOut, Menu, X, Stethoscope, Briefcase, TestTubes, ClipboardList, Pill } from 'lucide-react';
 import { useDispatch } from 'react-redux';
 import { logout } from '../../features/auth/authSlice';
 
@@ -33,7 +33,7 @@ export default function AdminNavigation({ children }) {
         },
         {
             label: 'Prescriptions',
-            icon: Briefcase,
+            icon: Pill,
             path: '/admin/prescriptions',
             description: 'Manage prescriptions',
         },
@@ -87,9 +87,8 @@ export default function AdminNavigation({ children }) {
         <div className="flex h-screen bg-gray-100">
             {/* Sidebar */}
             <div
-                className={`${
-                    sidebarOpen ? 'w-64' : 'w-20'
-                } bg-blue-900 text-white transition-all duration-300 ease-in-out flex flex-col`}
+                className={`${sidebarOpen ? 'w-64' : 'w-20'
+                    } bg-blue-900 text-white transition-all duration-300 ease-in-out flex flex-col`}
             >
                 {/* Logo */}
                 <div className="flex items-center justify-between p-4 border-b border-blue-800">
@@ -121,11 +120,10 @@ export default function AdminNavigation({ children }) {
                             <Link
                                 key={item.path}
                                 to={item.path}
-                                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition ${
-                                    active
-                                        ? 'bg-blue-700 text-white'
-                                        : 'text-blue-100 hover:bg-blue-800'
-                                }`}
+                                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition ${active
+                                    ? 'bg-blue-700 text-white'
+                                    : 'text-blue-100 hover:bg-blue-800'
+                                    }`}
                                 title={!sidebarOpen ? item.label : ''}
                             >
                                 <Icon size={20} className="flex-shrink-0" />

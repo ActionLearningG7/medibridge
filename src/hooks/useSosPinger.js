@@ -8,7 +8,7 @@ import { useUpdateDriverLocationMutation } from '../features/sos/sosApi';
 
 const POSITION_OPTIONS = {
     enableHighAccuracy: true,
-    timeout: 10000,
+    timeout: 20000, // Increased to 20s
     maximumAge: 0
 };
 

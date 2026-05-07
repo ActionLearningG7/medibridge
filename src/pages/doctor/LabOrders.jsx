@@ -1,6 +1,6 @@
 /**
  * Doctor Lab Orders Page
- * View and manage lab orders prescribed by doctor
+ * Clean and professional view for prescribed tests
  */
 
 import React, { useState } from 'react';
@@ -9,6 +9,7 @@ import { useGetDoctorOrdersQuery } from '../../features/lab/labApi';
 import { PageHeader, Card, Input, Select, Button, Toast } from '../../ui';
 import { OrderCard } from '../../components/lab/OrderCard';
 import { LAB_ORDER_STATUS_OPTIONS } from '../../features/lab/constants';
+import { Filter, Search, RotateCcw, Plus } from 'lucide-react';
 
 const STATUS_FILTER_OPTIONS = [
   { value: '', label: 'All Statuses' },
@@ -22,26 +23,15 @@ export default function DoctorLabOrders() {
   const [dateTo, setDateTo] = useState('');
   const [toastState, setToastState] = useState({ isOpen: false, type: 'success', message: '' });
 
-  // Build query params
   const queryParams = {
     status: statusFilter || undefined,
     dateFrom: dateFrom || undefined,
     dateTo: dateTo || undefined,
   };
 
-  // Fetch orders
   const { data: response = {}, isLoading, error, refetch } = useGetDoctorOrdersQuery(queryParams);
-
-  // Extract content array from paginated response
   const orders = response.content || [];
 
-  // Show toast
-  const showToast = (type, message) => {
-    setToastState({ isOpen: true, type, message });
-    setTimeout(() => setToastState({ ...toastState, isOpen: false }), 5000);
-  };
-
-  // Handle reset filters
   const handleResetFilters = () => {
     setStatusFilter('');
     setDateFrom('');
@@ -51,109 +41,102 @@ export default function DoctorLabOrders() {
   const hasActiveFilters = statusFilter || dateFrom || dateTo;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <PageHeader
-        title="Prescribed Lab Tests"
-        subtitle="View and manage lab orders for your patients"
-      />
-
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Filters */}
-        <Card className="mb-8">
-          <div className="p-6 space-y-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-gray-900">Filters</h3>
-              {hasActiveFilters && (
-                <button
-                  onClick={handleResetFilters}
-                  className="text-xs text-primary-600 hover:text-primary-700 font-medium"
-                >
-                  Clear all
-                </button>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <Select
-                label="Status"
-                options={STATUS_FILTER_OPTIONS}
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-              />
-              <Input
-                type="date"
-                label="From Date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-              />
-              <Input
-                type="date"
-                label="To Date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-              />
-            </div>
+    <div className="min-h-screen bg-[#fcfcfd]">
+      <div className="max-w-7xl mx-auto px-6 py-10">
+        {/* Simplified Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Diagnostic Orders</h1>
+            <p className="text-gray-500 mt-1">Monitor and track laboratory tests prescribed for your patients.</p>
           </div>
-        </Card>
+          <Button
+            onClick={() => navigate('/doctor/labs/booking')}
+            className="rounded-xl px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold flex items-center gap-2 shadow-sm"
+          >
+            <Plus size={18} />
+            New Order
+          </Button>
+        </div>
 
-        {/* Error state */}
-        {error && (
-          <Card className="mb-8 p-6 border-red-200 bg-red-50">
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="font-semibold text-red-900">Failed to load orders</p>
-                <p className="text-sm text-red-700">{error?.data?.message || 'Please try again'}</p>
-              </div>
-              <Button size="sm" variant="outline" onClick={() => refetch()}>
-                Retry
-              </Button>
-            </div>
-          </Card>
-        )}
-
-        {/* Loading state */}
-        {isLoading && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="bg-white rounded-lg border border-gray-200 p-4 animate-pulse">
-                <div className="space-y-3">
-                  <div className="h-4 bg-gray-200 rounded w-1/3" />
-                  <div className="h-8 bg-gray-200 rounded w-1/2" />
-                  <div className="h-4 bg-gray-200 rounded w-2/3" />
-                  <div className="flex gap-2 pt-4">
-                    <div className="h-9 bg-gray-200 rounded flex-1" />
-                    <div className="h-9 bg-gray-200 rounded flex-1" />
-                  </div>
-                </div>
-              </div>
-            ))}
+        {/* Filter Bar */}
+        <div className="bg-white border rounded-2xl p-5 mb-8 shadow-sm flex flex-col md:flex-row items-end gap-4">
+          <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Select
+              label="Current Status"
+              options={STATUS_FILTER_OPTIONS}
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="bg-gray-50/50"
+            />
+            <Input
+              type="date"
+              label="Start Date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="bg-gray-50/50"
+            />
+            <Input
+              type="date"
+              label="End Date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="bg-gray-50/50"
+            />
           </div>
-        )}
 
-        {/* Empty state */}
-        {!isLoading && orders.length === 0 && (
-          <Card className="text-center py-12">
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No orders found</h3>
-            <p className="text-gray-600 mb-6">
-              {hasActiveFilters
-                ? 'Try adjusting your filters'
-                : 'You haven\'t prescribed any lab tests yet'}
-            </p>
-            {hasActiveFilters ? (
-              <Button variant="outline" onClick={handleResetFilters}>
-                Clear Filters
-              </Button>
-            ) : (
-              <Button onClick={() => navigate('/doctor/labs/booking')}>
-                Prescribe Lab Tests
+          <div className="flex gap-2">
+            {hasActiveFilters && (
+              <Button
+                variant="outline"
+                onClick={handleResetFilters}
+                className="rounded-xl px-4 text-gray-500 border-gray-200"
+              >
+                <RotateCcw size={16} />
               </Button>
             )}
-          </Card>
+            <Button
+              onClick={() => refetch()}
+              variant="outline"
+              className="rounded-xl px-6 border-indigo-100 text-indigo-600 hover:bg-indigo-50"
+            >
+              Apply
+            </Button>
+          </div>
+        </div>
+
+        {/* Error / Loading / Empty States */}
+        {error && (
+          <div className="bg-rose-50 border border-rose-100 rounded-2xl p-6 mb-8 flex justify-between items-center">
+            <p className="text-rose-800 font-medium">Failed to retrieve clinical orders.</p>
+            <Button size="sm" variant="outline" className="border-rose-200 text-rose-700" onClick={() => refetch()}>
+              Retry
+            </Button>
+          </div>
         )}
 
-        {/* Orders grid */}
-        {!isLoading && orders.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {isLoading ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-48 bg-white border rounded-2xl animate-pulse" />
+            ))}
+          </div>
+        ) : orders.length === 0 ? (
+          <div className="bg-white border rounded-3xl py-20 text-center shadow-sm">
+            <div className="w-16 h-16 bg-gray-50 text-gray-300 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Search size={32} />
+            </div>
+            <h3 className="text-xl font-bold text-gray-900">No Orders Found</h3>
+            <p className="text-gray-500 mb-8 max-w-xs mx-auto">
+              {hasActiveFilters ? "No records match your selected criteria." : "You haven't prescribed any tests yet."}
+            </p>
+            {hasActiveFilters ? (
+              <Button variant="outline" onClick={handleResetFilters} className="rounded-xl px-8">Reset Filters</Button>
+            ) : (
+              <Button onClick={() => navigate('/doctor/labs/booking')} className="rounded-xl px-8 bg-indigo-600">Prescribe Tests</Button>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {orders.map((order) => (
               <OrderCard
                 key={order.id}
@@ -165,17 +148,18 @@ export default function DoctorLabOrders() {
           </div>
         )}
 
-        {!isLoading && orders.length > 0 && (
-          <p className="mt-6 text-center text-sm text-gray-600">
-            Showing {orders.length} order{orders.length !== 1 ? 's' : ''}
-          </p>
+        {orders.length > 0 && (
+          <div className="mt-10 text-center">
+            <p className="text-sm font-medium text-gray-400 uppercase tracking-widest">
+              Cataloged {orders.length} Patient Record{orders.length !== 1 ? 's' : ''}
+            </p>
+          </div>
         )}
       </div>
 
       {toastState.isOpen && (
         <Toast
           variant={toastState.type}
-          title={toastState.type === 'success' ? 'Success' : 'Error'}
           message={toastState.message}
           isOpen={toastState.isOpen}
           onClose={() => setToastState({ ...toastState, isOpen: false })}

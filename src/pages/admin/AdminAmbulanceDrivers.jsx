@@ -1,124 +1,135 @@
 /**
- * Admin Ambulance Drivers Management Page - DYNAMIC VERSION
+ * Admin Ambulance Drivers Management Page
  * Create, edit, manage ambulance driver profiles and credentials
  */
 import React, { useState } from 'react';
-import { Plus, Edit2, RotateCcw, Search, Mail, Phone, Shield, AlertCircle, Loader } from 'lucide-react';
+import { Plus, Edit2, RotateCcw, Search, Mail, Phone, Shield, AlertCircle, Loader, Pause, Play, Trash2 } from 'lucide-react';
+import { toast } from 'react-toastify';
 import {
     useGetAmbulanceDriversQuery,
     useCreateAmbulanceDriverMutation,
     useUpdateAmbulanceDriverMutation,
     useResetDriverCredentialsMutation,
+    useUpdateDriverStatusMutation,
+    usePauseDriverMutation,
+    useResumeDriverMutation,
 } from '../../app/api/ambulanceApi';
-
-// Sample data for fallback
-const SAMPLE_DRIVERS = [
-    {
-        id: '1',
-        firstName: 'John',
-        lastName: 'Smith',
-        email: 'john.smith@medibridge.com',
-        phoneNumber: '+1 (555) 123-4567',
-        licenseNumber: 'DL-2023-001',
-        licenseExpiry: '2025-12-31',
-        isActive: true,
-        createdAt: '2024-01-15'
-    },
-    {
-        id: '2',
-        firstName: 'Sarah',
-        lastName: 'Johnson',
-        email: 'sarah.johnson@medibridge.com',
-        phoneNumber: '+1 (555) 234-5678',
-        licenseNumber: 'DL-2023-002',
-        licenseExpiry: '2025-06-30',
-        isActive: true,
-        createdAt: '2024-02-10'
-    },
-    {
-        id: '3',
-        firstName: 'Michael',
-        lastName: 'Williams',
-        email: 'michael.williams@medibridge.com',
-        phoneNumber: '+1 (555) 345-6789',
-        licenseNumber: 'DL-2023-003',
-        licenseExpiry: '2025-09-15',
-        isActive: false,
-        createdAt: '2024-03-05'
-    },
-    {
-        id: '4',
-        firstName: 'Emily',
-        lastName: 'Davis',
-        email: 'emily.davis@medibridge.com',
-        phoneNumber: '+1 (555) 456-7890',
-        licenseNumber: 'DL-2023-004',
-        licenseExpiry: '2026-03-20',
-        isActive: true,
-        createdAt: '2024-04-12'
-    }
-];
+import DriverForm from '../../components/ambulance/DriverForm';
+import CredentialsDisplayModal from '../../components/ambulance/CredentialsDisplayModal';
 
 export default function AdminAmbulanceDrivers() {
     const [page, setPage] = useState(0);
     const [searchTerm, setSearchTerm] = useState('');
-    const [showModal, setShowModal] = useState(false);
+    const [showFormModal, setShowFormModal] = useState(false);
+    const [showCredentialsModal, setShowCredentialsModal] = useState(false);
     const [editingDriver, setEditingDriver] = useState(null);
-    const [showResetModal, setShowResetModal] = useState(false);
-    const [resetDriver, setResetDriver] = useState(null);
-    const [resetResult, setResetResult] = useState(null);
+    const [credentials, setCredentials] = useState(null);
+    const [pauseReason, setPauseReason] = useState('');
+    const [showPauseModal, setShowPauseModal] = useState(false);
+    const [pausingDriver, setPausingDriver] = useState(null);
 
     // RTK Query hooks
-    const { data: driversData, isLoading, error, isUninitialized } = useGetAmbulanceDriversQuery({ page, size: 10 });
+    const { data: driversPage, isLoading, error, refetch } = useGetAmbulanceDriversQuery({
+        page,
+        size: 10,
+        search: searchTerm
+    });
     const [createDriver, { isLoading: isCreating }] = useCreateAmbulanceDriverMutation();
     const [updateDriver, { isLoading: isUpdating }] = useUpdateAmbulanceDriverMutation();
     const [resetCredentials, { isLoading: isResetting }] = useResetDriverCredentialsMutation();
+    const [updateStatus, { isLoading: isUpdatingStatus }] = useUpdateDriverStatusMutation();
+    const [pauseDriver, { isLoading: isPausing }] = usePauseDriverMutation();
+    const [resumeDriver, { isLoading: isResuming }] = useResumeDriverMutation();
 
-    // Determine drivers source
-    const drivers = driversData?.content || SAMPLE_DRIVERS;
-    const isUsingFallback = !driversData || error;
-
+    const drivers = driversPage?.content || [];
+    const totalPages = driversPage?.totalPages || 0;
 
     const handleCreateDriver = async (formData) => {
         try {
-            await createDriver(formData).unwrap();
-            setShowModal(false);
-            alert('Driver created successfully');
+            const response = await createDriver(formData).unwrap();
+            toast.success('Ambulance driver created successfully!');
+            setShowFormModal(false);
+            // Show credentials modal with the response
+            setCredentials(response);
+            setShowCredentialsModal(true);
+            refetch();
         } catch (err) {
+            const errorMsg = err?.data?.message || 'Failed to create driver';
+            toast.error(errorMsg);
             console.error('Error creating driver:', err);
-            alert('Failed to create driver');
         }
     };
 
     const handleUpdateDriver = async (formData) => {
         try {
-            await updateDriver({ id: editingDriver.id, ...formData }).unwrap();
-            setShowModal(false);
+            await updateDriver({ id: editingDriver.userId, ...formData }).unwrap();
+            toast.success('Driver updated successfully!');
+            setShowFormModal(false);
             setEditingDriver(null);
-            alert('Driver updated successfully');
+            refetch();
         } catch (err) {
+            const errorMsg = err?.data?.message || 'Failed to update driver';
+            toast.error(errorMsg);
             console.error('Error updating driver:', err);
-            alert('Failed to update driver');
         }
     };
 
-    const handleResetCredentials = async () => {
+    const handleResetCredentials = async (driver) => {
         try {
-            const result = await resetCredentials(resetDriver.id).unwrap();
-            setResetResult(result);
+            const response = await resetCredentials(driver.userId).unwrap();
+            toast.success('Credentials reset successfully!');
+            setCredentials(response);
+            setShowCredentialsModal(true);
         } catch (err) {
+            const errorMsg = err?.data?.message || 'Failed to reset credentials';
+            toast.error(errorMsg);
             console.error('Error resetting credentials:', err);
-            alert('Failed to reset credentials');
         }
     };
 
-    const filteredDrivers = drivers.filter(
-        (driver) =>
-            driver.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            driver.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            driver.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            driver.phoneNumber?.includes(searchTerm)
-    );
+    const handlePauseDriver = async () => {
+        if (!pauseReason.trim()) {
+            toast.error('Please enter a reason for pausing');
+            return;
+        }
+        try {
+            await pauseDriver({ id: pausingDriver.userId, reason: pauseReason }).unwrap();
+            toast.success('Driver paused successfully!');
+            setShowPauseModal(false);
+            setPausingDriver(null);
+            setPauseReason('');
+            refetch();
+        } catch (err) {
+            const errorMsg = err?.data?.message || 'Failed to pause driver';
+            toast.error(errorMsg);
+            console.error('Error pausing driver:', err);
+        }
+    };
+
+    const handleResumeDriver = async (driverId) => {
+        try {
+            await resumeDriver(driverId).unwrap();
+            toast.success('Driver resumed successfully!');
+            refetch();
+        } catch (err) {
+            const errorMsg = err?.data?.message || 'Failed to resume driver';
+            toast.error(errorMsg);
+            console.error('Error resuming driver:', err);
+        }
+    };
+
+    const handleToggleStatus = async (driver) => {
+        try {
+            const newStatus = driver.isActive ? 'INACTIVE' : 'ACTIVE';
+            await updateStatus({ id: driver.userId, status: newStatus }).unwrap();
+            toast.success(`Driver ${newStatus.toLowerCase()} successfully!`);
+            refetch();
+        } catch (err) {
+            const errorMsg = err?.data?.message || 'Failed to update driver status';
+            toast.error(errorMsg);
+            console.error('Error updating status:', err);
+        }
+    };
 
     const getLicenseStatus = (expiryDate) => {
         const now = new Date();
@@ -142,7 +153,7 @@ export default function AdminAmbulanceDrivers() {
                     <button
                         onClick={() => {
                             setEditingDriver(null);
-                            setShowModal(true);
+                            setShowFormModal(true);
                         }}
                         className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
                     >
@@ -164,7 +175,7 @@ export default function AdminAmbulanceDrivers() {
                     </div>
                 </div>
 
-                {/* Error / Fallback Banner */}
+                {/* Error Banner */}
                 {error && (
                     <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
                         <div className="flex items-center gap-3">
@@ -172,18 +183,6 @@ export default function AdminAmbulanceDrivers() {
                             <div>
                                 <p className="font-semibold text-red-800">{error?.data?.message || 'Error loading drivers'}</p>
                                 <p className="text-sm text-red-700">Please check backend connection and try again.</p>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {isUsingFallback && (
-                    <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <div className="flex items-center gap-3">
-                            <AlertCircle className="text-blue-600" size={20} />
-                            <div>
-                                <p className="font-semibold text-blue-800">Demo Mode</p>
-                                <p className="text-sm text-blue-700">Displaying sample data. Start the backend to load real data: mvn spring-boot:run</p>
                             </div>
                         </div>
                     </div>
@@ -215,10 +214,10 @@ export default function AdminAmbulanceDrivers() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {filteredDrivers.map((driver, idx) => {
-                                        const licenseStatus = getLicenseStatus(driver.licenseExpiryDate);
+                                    {drivers.map((driver, idx) => {
+                                        const licenseStatus = getLicenseStatus(driver.licenseExpiry);
                                         return (
-                                            <tr key={driver.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                                            <tr key={driver.userId} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                                                 <td className="px-6 py-4">
                                                     <div>
                                                         <p className="font-medium text-gray-900">
@@ -243,19 +242,23 @@ export default function AdminAmbulanceDrivers() {
                                                     <div>
                                                         <p className="text-sm font-medium text-gray-900">{driver.licenseNumber}</p>
                                                         <p className="text-xs text-gray-600">
-                                                            Expires: {new Date(driver.licenseExpiryDate).toLocaleDateString()}
+                                                            Expires: {new Date(driver.licenseExpiry).toLocaleDateString()}
                                                         </p>
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${licenseStatus.bgColor}`}>
-                                                        <span className={licenseStatus.color}>{licenseStatus.status}</span>
+                                                    <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+                                                        driver.isActive 
+                                                            ? 'bg-green-100 text-green-700' 
+                                                            : 'bg-red-100 text-red-700'
+                                                    }`}>
+                                                        {driver.isActive ? 'ACTIVE' : 'INACTIVE'}
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center gap-2 text-sm">
                                                         <Shield size={16} />
-                                                        <span className="text-gray-700">{driver.certificationStatus || 'VERIFIED'}</span>
+                                                        <span className="text-gray-700">{driver.certificationNumber || 'N/A'}</span>
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4">
@@ -263,7 +266,7 @@ export default function AdminAmbulanceDrivers() {
                                                         <button
                                                             onClick={() => {
                                                                 setEditingDriver(driver);
-                                                                setShowModal(true);
+                                                                setShowFormModal(true);
                                                             }}
                                                             className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded"
                                                             title="Edit Driver"
@@ -271,16 +274,34 @@ export default function AdminAmbulanceDrivers() {
                                                             <Edit2 size={18} />
                                                         </button>
                                                         <button
-                                                            onClick={() => {
-                                                                setResetDriver(driver);
-                                                                setShowResetModal(true);
-                                                                setResetResult(null);
-                                                            }}
-                                                            className="text-orange-600 hover:text-orange-900 p-1 hover:bg-orange-50 rounded"
+                                                            onClick={() => handleResetCredentials(driver)}
+                                                            disabled={isResetting}
+                                                            className="text-orange-600 hover:text-orange-900 p-1 hover:bg-orange-50 rounded disabled:opacity-50"
                                                             title="Reset Credentials"
                                                         >
                                                             <RotateCcw size={18} />
                                                         </button>
+                                                        {driver.isActive ? (
+                                                            <button
+                                                                onClick={() => {
+                                                                    setPausingDriver(driver);
+                                                                    setShowPauseModal(true);
+                                                                }}
+                                                                className="text-yellow-600 hover:text-yellow-900 p-1 hover:bg-yellow-50 rounded"
+                                                                title="Pause Driver"
+                                                            >
+                                                                <Pause size={18} />
+                                                            </button>
+                                                        ) : (
+                                                            <button
+                                                                onClick={() => handleResumeDriver(driver.userId)}
+                                                                disabled={isResuming}
+                                                                className="text-green-600 hover:text-green-900 p-1 hover:bg-green-50 rounded disabled:opacity-50"
+                                                                title="Resume Driver"
+                                                            >
+                                                                <Play size={18} />
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </td>
                                             </tr>
@@ -301,7 +322,7 @@ export default function AdminAmbulanceDrivers() {
                 )}
 
                 {/* No Results After Search */}
-                {!isLoading && drivers.length > 0 && filteredDrivers.length === 0 && (
+                {!isLoading && drivers.length === 0 && searchTerm && !error && (
                     <div className="text-center py-12 bg-white rounded-lg">
                         <Search className="mx-auto text-gray-400 mb-3" size={48} />
                         <p className="text-gray-500 text-lg">No drivers match your search</p>
@@ -309,237 +330,79 @@ export default function AdminAmbulanceDrivers() {
                 )}
             </div>
 
-            {/* Create/Edit Modal */}
-            {showModal && (
-                <DriverModal
+            {/* Form Modal */}
+            {showFormModal && (
+                <DriverForm
                     driver={editingDriver}
                     onClose={() => {
-                        setShowModal(false);
+                        setShowFormModal(false);
                         setEditingDriver(null);
                     }}
                     onSubmit={editingDriver ? handleUpdateDriver : handleCreateDriver}
+                    isLoading={isCreating || isUpdating}
                 />
             )}
 
-            {/* Reset Credentials Modal */}
-            {showResetModal && (
-                <ResetCredentialsModal
-                    driver={resetDriver}
-                    resetResult={resetResult}
+            {/* Credentials Modal */}
+            {showCredentialsModal && (
+                <CredentialsDisplayModal
+                    credentials={credentials}
+                    driver={editingDriver}
+                    isOpen={showCredentialsModal}
                     onClose={() => {
-                        setShowResetModal(false);
-                        setResetDriver(null);
-                        setResetResult(null);
+                        setShowCredentialsModal(false);
+                        setCredentials(null);
                     }}
-                    onConfirm={handleResetCredentials}
                 />
             )}
-        </div>
-    );
-}
 
-function DriverModal({ driver, onClose, onSubmit }) {
-    const [formData, setFormData] = React.useState(
-        driver || {
-            firstName: '',
-            lastName: '',
-            email: '',
-            phoneNumber: '',
-            licenseNumber: '',
-            licenseExpiryDate: '',
-            certificationStatus: 'VERIFIED',
-        }
-    );
+            {/* Pause Driver Modal */}
+            {showPauseModal && pausingDriver && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                    <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 space-y-4">
+                        <div className="flex items-center gap-3 pb-4 border-b">
+                            <div className="bg-yellow-100 p-3 rounded-full">
+                                <Pause className="text-yellow-600" size={24} />
+                            </div>
+                            <div>
+                                <h2 className="text-lg font-bold text-gray-900">Pause Driver</h2>
+                                <p className="text-sm text-gray-600">{pausingDriver.firstName} {pausingDriver.lastName}</p>
+                            </div>
+                        </div>
 
-    const handleChange = (field, value) => {
-        setFormData({ ...formData, [field]: value });
-    };
-
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 space-y-4">
-                <h2 className="text-xl font-bold">{driver ? 'Edit Driver' : 'Add Driver'}</h2>
-
-                <form
-                    onSubmit={(e) => {
-                        e.preventDefault();
-                        onSubmit(formData);
-                    }}
-                    className="space-y-4"
-                >
-                    <div className="grid grid-cols-2 gap-3">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
-                            <input
-                                type="text"
-                                placeholder="John"
-                                value={formData.firstName}
-                                onChange={(e) => handleChange('firstName', e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                                required
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Reason for pausing</label>
+                            <textarea
+                                value={pauseReason}
+                                onChange={(e) => setPauseReason(e.target.value)}
+                                placeholder="e.g., Medical leave, License renewal, etc."
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                rows="4"
                             />
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
-                            <input
-                                type="text"
-                                placeholder="Doe"
-                                value={formData.lastName}
-                                onChange={(e) => handleChange('lastName', e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                                required
-                            />
-                        </div>
-                    </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                        <input
-                            type="email"
-                            placeholder="john@example.com"
-                            value={formData.email}
-                            onChange={(e) => handleChange('email', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            required
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                        <input
-                            type="tel"
-                            placeholder="+91-9876543210"
-                            value={formData.phoneNumber}
-                            onChange={(e) => handleChange('phoneNumber', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">License Number</label>
-                        <input
-                            type="text"
-                            placeholder="DL123456789"
-                            value={formData.licenseNumber}
-                            onChange={(e) => handleChange('licenseNumber', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            required
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">License Expiry Date</label>
-                        <input
-                            type="date"
-                            value={formData.licenseExpiryDate}
-                            onChange={(e) => handleChange('licenseExpiryDate', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            required
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Certification Status</label>
-                        <select
-                            value={formData.certificationStatus}
-                            onChange={(e) => handleChange('certificationStatus', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        >
-                            <option value="VERIFIED">Verified</option>
-                            <option value="PENDING">Pending</option>
-                            <option value="SUSPENDED">Suspended</option>
-                        </select>
-                    </div>
-
-                    <div className="flex gap-2 pt-4">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-                        >
-                            Save
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    );
-}
-
-function ResetCredentialsModal({ driver, resetResult, onClose, onConfirm }) {
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 space-y-4">
-                <div className="flex items-center gap-3 pb-4 border-b">
-                    <div className="bg-orange-100 p-3 rounded-full">
-                        <RotateCcw className="text-orange-600" size={24} />
-                    </div>
-                    <div>
-                        <h2 className="text-lg font-bold text-gray-900">Reset Credentials</h2>
-                        <p className="text-sm text-gray-600">{driver?.firstName} {driver?.lastName}</p>
-                    </div>
-                </div>
-
-                {!resetResult ? (
-                    <>
-                        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                            <p className="text-sm text-orange-800">
-                                <strong>Warning:</strong> This will generate a new temporary password and reset all authentication tokens.
-                                The driver will need to update their password on next login.
-                            </p>
-                        </div>
-
-                        <div className="flex gap-2 pt-4">
+                        <div className="flex gap-3 pt-4">
                             <button
-                                onClick={onClose}
+                                onClick={() => {
+                                    setShowPauseModal(false);
+                                    setPausingDriver(null);
+                                    setPauseReason('');
+                                }}
                                 className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium"
                             >
                                 Cancel
                             </button>
                             <button
-                                onClick={onConfirm}
-                                className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium"
+                                onClick={handlePauseDriver}
+                                disabled={isPausing}
+                                className="flex-1 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 font-medium disabled:opacity-50"
                             >
-                                Reset
+                                {isPausing ? 'Pausing...' : 'Pause'}
                             </button>
                         </div>
-                    </>
-                ) : (
-                    <>
-                        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                            <p className="text-sm font-medium text-green-800 mb-3">Credentials reset successfully!</p>
-                            <div className="bg-white rounded border border-green-200 p-3 space-y-2">
-                                <div>
-                                    <p className="text-xs text-gray-600">Temporary Password:</p>
-                                    <p className="text-sm font-mono font-bold text-gray-900 break-all">{resetResult.temporaryPassword}</p>
-                                </div>
-                                {resetResult.tempEmail && (
-                                    <div>
-                                        <p className="text-xs text-gray-600">Email:</p>
-                                        <p className="text-sm font-mono text-gray-900">{resetResult.tempEmail}</p>
-                                    </div>
-                                )}
-                            </div>
-                            <p className="text-xs text-gray-600 mt-3">
-                                Copy this password and share it securely with the driver. They must update it on their first login.
-                            </p>
-                        </div>
-
-                        <button
-                            onClick={onClose}
-                            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-                        >
-                            Close
-                        </button>
-                    </>
-                )}
-            </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

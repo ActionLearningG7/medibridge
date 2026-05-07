@@ -89,6 +89,7 @@ export const StatusBadge = ({ status }) => {
     // Legacy appointment statuses
     SCHEDULED: 'bg-blue-100 text-blue-800',
     CONFIRMED: 'bg-green-100 text-green-800',
+    PAYMENT_PENDING: 'bg-orange-100 text-orange-800',
   };
 
   return (

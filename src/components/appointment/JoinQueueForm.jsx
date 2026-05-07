@@ -1,9 +1,14 @@
-/**
- * Join Queue Form Component
- * Form for joining the virtual queue
- */
-
 import { useState } from 'react';
+import { motion } from 'framer-motion';
+import {
+  Calendar,
+  User,
+  ArrowRight,
+  AlertCircle,
+  ChevronRight,
+  ShieldCheck
+} from 'lucide-react';
+import { cn } from '../../utils/cn';
 
 const JoinQueueForm = ({ appointments, onSubmit, onCancel, isSubmitting }) => {
   const [formData, setFormData] = useState({
@@ -11,190 +16,131 @@ const JoinQueueForm = ({ appointments, onSubmit, onCancel, isSubmitting }) => {
     isEmergency: false,
   });
 
-  const [formErrors, setFormErrors] = useState({});
+  const [error, setError] = useState(null);
 
-  // Filter upcoming appointments only
   const upcomingAppointments = appointments?.filter(apt => {
     const aptDate = new Date(apt.date);
     const now = new Date();
-
-    // Compare dates without time - include today's appointments
     const aptDateOnly = new Date(aptDate.getFullYear(), aptDate.getMonth(), aptDate.getDate());
     const todayDateOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const isTodayOrFuture = aptDateOnly >= todayDateOnly;
-
-    // Exclude cancelled or completed appointments
-    const isNotCancelled = apt.status !== 'CANCELLED' &&
-                          apt.status !== 'NO_SHOW' &&
-                          apt.status !== 'COMPLETED';
-
-    console.log('🔍 Filtering appointment:', {
-      id: apt.id,
-      date: apt.date,
-      status: apt.status,
-      aptDateOnly: aptDateOnly.toISOString().split('T')[0],
-      todayDateOnly: todayDateOnly.toISOString().split('T')[0],
-      isTodayOrFuture,
-      isNotCancelled,
-      included: isTodayOrFuture && isNotCancelled
-    });
-
-    return isTodayOrFuture && isNotCancelled;
+    return aptDateOnly >= todayDateOnly &&
+      !['CANCELLED', 'NO_SHOW', 'COMPLETED', 'EXPIRED'].includes(apt.status);
   }) || [];
 
-  console.log('📋 Filtered upcoming appointments:', upcomingAppointments.length);
-
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value,
-    }));
-
-    if (formErrors[name]) {
-      setFormErrors((prev) => ({ ...prev, [name]: null }));
-    }
-  };
-
-  const validateForm = () => {
-    const errors = {};
-
-    if (!formData.appointmentId) {
-      errors.appointmentId = 'Please select an appointment';
-    }
-
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
+  const handleSelect = (id) => {
+    setFormData(prev => ({ ...prev, appointmentId: id }));
+    setError(null);
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-
-    if (!validateForm()) {
+    if (!formData.appointmentId) {
+      setError('Please select an appointment profile.');
       return;
     }
-
     onSubmit(formData);
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <div className="space-y-6">
+      <div className="flex items-center gap-3 border-b pb-4 mb-2">
+        <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+          <Calendar size={20} />
+        </div>
+        <h4 className="text-lg font-bold text-gray-900">Select Appointment</h4>
+      </div>
+
       {upcomingAppointments.length === 0 ? (
-        <div className="text-center py-4">
-          <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-          <p className="mt-2 text-sm text-gray-600">
-            No upcoming appointments found. Please book an appointment first.
-          </p>
+        <div className="text-center py-8">
+          <p className="text-gray-400 font-medium">No valid appointments found for today.</p>
         </div>
       ) : (
-        <>
-          {/* Appointment Selection */}
-          <div>
-            <label htmlFor="appointmentId" className="block text-sm font-medium text-gray-700 mb-2">
-              Select Appointment <span className="text-red-500">*</span>
-            </label>
-            <select
-              id="appointmentId"
-              name="appointmentId"
-              value={formData.appointmentId}
-              onChange={handleChange}
-              className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${
-                formErrors.appointmentId
-                  ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
-                  : 'border-gray-300 focus:border-primary-500 focus:ring-primary-500'
-              }`}
-            >
-              <option value="">Choose an appointment</option>
-              {upcomingAppointments.map((appointment) => (
-                <option key={appointment.id} value={appointment.id}>
-                  {new Date(appointment.date).toLocaleDateString()} -{' '}
-                  {new Date(appointment.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} -{' '}
-                  Dr. {appointment.doctorName || 'Unknown'}
-                </option>
-              ))}
-            </select>
-            {formErrors.appointmentId && (
-              <p className="mt-1 text-sm text-red-600">{formErrors.appointmentId}</p>
-            )}
-          </div>
-
-          {/* Emergency Checkbox */}
-          <div className="flex items-start">
-            <div className="flex items-center h-5">
-              <input
-                id="isEmergency"
-                name="isEmergency"
-                type="checkbox"
-                checked={formData.isEmergency}
-                onChange={handleChange}
-                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-              />
-            </div>
-            <div className="ml-3 text-sm">
-              <label htmlFor="isEmergency" className="font-medium text-gray-700">
-                Emergency Case
-              </label>
-              <p className="text-gray-500">
-                Check this if you need urgent medical attention. Emergency cases are prioritized in the queue.
-              </p>
-            </div>
-          </div>
-
-          {/* Info Box */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div className="ml-3 flex-1">
-                <h3 className="text-sm font-medium text-blue-800">What happens next?</h3>
-                <div className="mt-2 text-sm text-blue-700">
-                  <ul className="list-disc pl-5 space-y-1">
-                    <li>You'll receive a queue token number</li>
-                    <li>Your position and estimated wait time will be displayed</li>
-                    <li>The queue updates automatically every 15 seconds</li>
-                    <li>You'll be notified when it's your turn</li>
-                  </ul>
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto pr-1">
+            {upcomingAppointments.map((apt) => (
+              <button
+                key={apt.id}
+                onClick={() => handleSelect(apt.id)}
+                className={cn(
+                  "flex items-center justify-between p-4 rounded-xl border transition-all text-left",
+                  formData.appointmentId === apt.id
+                    ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-100"
+                    : "bg-white border-gray-100 hover:border-indigo-200 text-gray-700"
+                )}
+              >
+                <div className="flex items-center gap-4">
+                  <div className={cn(
+                    "w-10 h-10 rounded-full flex items-center justify-center",
+                    formData.appointmentId === apt.id ? "bg-white/20" : "bg-gray-50 text-gray-400"
+                  )}>
+                    <User size={18} />
+                  </div>
+                  <div>
+                    <p className={cn("text-[10px] font-bold uppercase tracking-wider mb-0.5",
+                      formData.appointmentId === apt.id ? "text-indigo-100" : "text-gray-400")}>
+                      {new Date(apt.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                    <p className="font-semibold">{apt.doctorName || 'Doctor'}</p>
+                  </div>
                 </div>
-              </div>
+                <ChevronRight size={16} className={formData.appointmentId === apt.id ? "text-white" : "text-gray-300"} />
+              </button>
+            ))}
+          </div>
+          {error && (
+            <div className="flex items-center gap-2 text-rose-600 text-xs font-semibold ml-2">
+              <AlertCircle size={14} />
+              {error}
             </div>
-          </div>
-
-          {/* Form Actions */}
-          <div className="flex justify-end space-x-3 pt-4 border-t">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-              disabled={isSubmitting}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting || upcomingAppointments.length === 0}
-              className="inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
-            >
-              {isSubmitting ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  Joining Queue...
-                </>
-              ) : (
-                'Join Queue'
-              )}
-            </button>
-          </div>
-        </>
+          )}
+        </div>
       )}
-    </form>
+
+      {/* Simplified Priority Toggle */}
+      <div className="p-4 bg-white border rounded-2xl flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className={`p-2 rounded-lg ${formData.isEmergency ? 'bg-rose-50 text-rose-600' : 'bg-gray-50 text-gray-400'}`}>
+            <ShieldCheck size={18} />
+          </div>
+          <div className="space-y-0.5">
+            <span className="text-sm font-bold text-gray-900 block">Emergency Case</span>
+            <span className="text-xs text-gray-500">Enable only for critical needs</span>
+          </div>
+        </div>
+        <input
+          type="checkbox"
+          checked={formData.isEmergency}
+          onChange={(e) => setFormData(p => ({ ...p, isEmergency: e.target.checked }))}
+          className="w-10 h-5 rounded-full border-gray-300 text-rose-600 focus:ring-rose-500 cursor-pointer"
+        />
+      </div>
+
+      <div className="flex gap-3 pt-4 border-t">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="flex-1 py-3 text-sm font-bold text-gray-500 bg-white border rounded-xl hover:bg-gray-50 transition-all"
+          disabled={isSubmitting}
+        >
+          Cancel
+        </button>
+
+        <button
+          onClick={handleSubmit}
+          disabled={isSubmitting || upcomingAppointments.length === 0}
+          className="flex-1 inline-flex items-center justify-center py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all gap-2 disabled:opacity-50"
+        >
+          {isSubmitting ? (
+            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          ) : (
+            <>
+              Confirm Join
+              <ArrowRight size={16} />
+            </>
+          )}
+        </button>
+      </div>
+    </div>
   );
 };
 

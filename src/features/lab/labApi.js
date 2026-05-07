@@ -458,6 +458,18 @@ export const labApi = createApi({
     }),
 
     /**
+     * GET /admin/lab/orders?eligibleOnly=true
+     * Fetch orders waiting for task assignment
+     */
+    getEligibleAdminLabOrders: builder.query({
+      query: (params = {}) => ({
+        url: LAB_ENDPOINTS.GET_ADMIN_ORDERS,
+        params: { ...params, eligibleOnly: true },
+      }),
+      providesTags: [LAB_TAGS.ADMIN_ORDERS],
+    }),
+
+    /**
      * GET /admin/lab/tasks
      * Fetch all lab collection tasks
      * Used in: Admin LabTasks page
@@ -723,6 +735,7 @@ export const {
 
   // Admin
   useGetAdminLabOrdersQuery,
+  useGetEligibleAdminLabOrdersQuery,
   useGetAdminLabTasksQuery,
   useGetAdminLabTaskDetailQuery,
   useAssignAdminLabTaskMutation,

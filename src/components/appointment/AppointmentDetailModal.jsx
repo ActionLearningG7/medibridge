@@ -1,26 +1,29 @@
 /**
- * Appointment Detail Modal Component
+ * Appointment Detail Modal Content
  * Shows detailed information about an appointment
  */
 
 import LoadingSpinner from '../feedback/LoadingSpinner';
 import { StatusBadge } from '../profile/ProfileFields';
+import { Calendar, Clock, User, FileText, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Button } from '../../ui';
 
 const AppointmentDetailModal = ({ appointment, isLoading, onClose }) => {
   if (isLoading) {
     return (
-      <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-        <div className="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
-          <div className="p-8">
-            <LoadingSpinner size="lg" />
-          </div>
-        </div>
+      <div className="p-12 flex flex-col items-center justify-center">
+        <LoadingSpinner size="lg" />
+        <p className="mt-4 text-gray-500 font-medium">Loading details...</p>
       </div>
     );
   }
 
   if (!appointment) {
-    return null;
+    return (
+      <div className="p-8 text-center text-gray-500">
+        Appointment not found.
+      </div>
+    );
   }
 
   const formatDate = (dateString) => {
@@ -45,160 +48,121 @@ const AppointmentDetailModal = ({ appointment, isLoading, onClose }) => {
   const isCancelled = appointment.status === 'CANCELLED' || appointment.status === 'NO_SHOW';
   const canJoinQueue = isUpcoming &&
     (appointment.status === 'REQUESTED' ||
-     appointment.status === 'SCHEDULED' ||
-     appointment.status === 'CONFIRMED');
+      appointment.status === 'SCHEDULED' ||
+      appointment.status === 'CONFIRMED');
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b pb-4">
-          <h3 className="text-xl font-medium text-gray-900">
-            Appointment Details
-          </h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-500"
-          >
-            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+    <div className="space-y-8 py-2">
+      {/* Pending Payment Alert */}
+      {appointment.status === 'PAYMENT_PENDING' && (
+        <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-4 flex items-center gap-4 animate-in fade-in zoom-in-95 duration-500">
+          <div className="flex-shrink-0 w-10 h-10 bg-white rounded-full flex items-center justify-center text-blue-600 shadow-sm">
+            <Clock className="w-6 h-6 animate-spin" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-bold text-blue-900">Confirming Payment</p>
+            <p className="text-xs text-blue-700 font-medium">We're verifying your transaction. This page will update automatically once confirmed.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Main Info Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Date & Time */}
+        <div className="bg-white p-5 rounded-2xl border-2 border-gray-100 shadow-sm space-y-4">
+          <div className="flex items-center gap-3 text-primary-600">
+            <Calendar className="w-5 h-5" />
+            <h4 className="font-bold text-gray-900">Schedule</h4>
+          </div>
+          <div className="space-y-1 pl-8">
+            <p className="text-sm font-bold text-gray-800">{formatDate(appointment.date)}</p>
+            <div className="flex items-center gap-2 text-xs text-gray-500 font-medium">
+              <Clock className="w-3.5 h-3.5" />
+              {formatTime(appointment.date)}
+            </div>
+          </div>
         </div>
 
-        {/* Content */}
-        <div className="mt-6 space-y-6">
-          {/* Status Card */}
-          <div className="bg-gray-50 rounded-lg p-4">
-            <div className="flex items-center justify-between">
+        {/* Doctor Info */}
+        <div className="bg-white p-5 rounded-2xl border-2 border-gray-100 shadow-sm space-y-4">
+          <div className="flex items-center gap-3 text-primary-600">
+            <User className="w-5 h-5" />
+            <h4 className="font-bold text-gray-900">Consultant</h4>
+          </div>
+          <div className="space-y-1 pl-8">
+            <p className="text-sm font-bold text-gray-800">{appointment.doctorName || 'Expert Physician'}</p>
+            <p className="text-xs text-primary-600 font-medium">{appointment.doctorSpecialization || 'Specialist'}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Status & ID */}
+      <div className="bg-gray-50 rounded-2xl p-4 flex items-center justify-between border border-gray-100">
+        <div className="flex items-center gap-3">
+          <StatusBadge status={appointment.status} />
+          {isUpcoming && !isCancelled && (
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] uppercase font-bold bg-yellow-100 text-yellow-800 flex items-center gap-1">
+              <Clock className="w-3 h-3" /> Upcoming
+            </span>
+          )}
+        </div>
+        <div className="text-right">
+          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Ref ID</p>
+          <p className="text-sm font-mono font-bold text-gray-600">{appointment.id?.substring(0, 8).toUpperCase()}</p>
+        </div>
+      </div>
+
+      {/* Reason section */}
+      <div className="bg-white p-5 rounded-2xl border-2 border-gray-100 shadow-sm">
+        <div className="flex items-center gap-3 text-primary-600 mb-4">
+          <FileText className="w-5 h-5" />
+          <h4 className="font-bold text-gray-900">Reason for Visit</h4>
+        </div>
+        <p className="text-sm text-gray-700 italic bg-gray-50 p-4 rounded-xl border border-gray-200 leading-relaxed font-medium">
+          "{appointment.reason || 'No description provided'}"
+        </p>
+      </div>
+
+      {/* Notes & Diagnosis */}
+      {(appointment.notes || appointment.diagnosis) && (
+        <div className="bg-amber-50 p-5 rounded-2xl border-2 border-amber-100 shadow-sm space-y-4">
+          <div className="flex items-center gap-3 text-amber-600 font-bold">
+            <AlertCircle className="w-5 h-5" />
+            <h4>Clinical Findings</h4>
+          </div>
+          <div className="space-y-4 pl-8">
+            {appointment.notes && (
               <div>
-                <p className="text-sm text-gray-500">Status</p>
-                <div className="mt-1">
-                  <StatusBadge status={appointment.status} />
-                  {isUpcoming && !isCancelled && (
-                    <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                      Upcoming
-                    </span>
-                  )}
-                </div>
+                <p className="text-[10px] text-amber-700 font-bold uppercase tracking-wider mb-1">Doctor's Notes</p>
+                <p className="text-sm text-gray-800 font-medium">{appointment.notes}</p>
               </div>
-              <div className="text-right">
-                <p className="text-sm text-gray-500">Appointment ID</p>
-                <p className="text-sm font-mono text-gray-900 mt-1">
-                  {appointment.id?.substring(0, 8)}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Date and Time */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm font-medium text-gray-500">Date</p>
-              <div className="mt-1 flex items-center text-sm text-gray-900">
-                <svg className="h-5 w-5 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                {formatDate(appointment.date)}
-              </div>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500">Time</p>
-              <div className="mt-1 flex items-center text-sm text-gray-900">
-                <svg className="h-5 w-5 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                {formatTime(appointment.date)}
-              </div>
-            </div>
-          </div>
-
-          {/* Doctor Information */}
-          <div>
-            <p className="text-sm font-medium text-gray-500 mb-2">Doctor</p>
-            <div className="flex items-center p-3 bg-blue-50 rounded-lg">
-              <div className="flex-shrink-0 h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                <svg className="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium text-gray-900">
-                  {appointment.doctorName || 'Doctor'}
-                </p>
-                <p className="text-xs text-gray-500">
-                  {appointment.doctorSpecialization || 'General Medicine'}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Reason for Visit */}
-          <div>
-            <p className="text-sm font-medium text-gray-500 mb-2">Reason for Visit</p>
-            <div className="p-3 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-900">
-                {appointment.reason || 'No reason provided'}
-              </p>
-            </div>
-          </div>
-
-          {/* Additional Information */}
-          {(appointment.notes || appointment.diagnosis) && (
-            <div>
-              <p className="text-sm font-medium text-gray-500 mb-2">Additional Information</p>
-              <div className="p-3 bg-gray-50 rounded-lg space-y-2">
-                {appointment.notes && (
-                  <div>
-                    <p className="text-xs font-medium text-gray-700">Notes</p>
-                    <p className="text-sm text-gray-900">{appointment.notes}</p>
-                  </div>
-                )}
-                {appointment.diagnosis && (
-                  <div>
-                    <p className="text-xs font-medium text-gray-700">Diagnosis</p>
-                    <p className="text-sm text-gray-900">{appointment.diagnosis}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Timestamps */}
-          <div className="text-xs text-gray-500 space-y-1 pt-4 border-t">
-            {appointment.createdAt && (
-              <p>
-                Created: {new Date(appointment.createdAt).toLocaleString()}
-              </p>
             )}
-            {appointment.updatedAt && appointment.updatedAt !== appointment.createdAt && (
-              <p>
-                Last Updated: {new Date(appointment.updatedAt).toLocaleString()}
-              </p>
+            {appointment.diagnosis && (
+              <div>
+                <p className="text-[10px] text-amber-700 font-bold uppercase tracking-wider mb-1">Final Diagnosis</p>
+                <p className="text-sm text-gray-800 font-medium">{appointment.diagnosis}</p>
+              </div>
             )}
           </div>
         </div>
+      )}
 
-        {/* Footer */}
-        <div className="mt-6 flex justify-end space-x-3 pt-4 border-t">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-          >
-            Close
-          </button>
-          {canJoinQueue && (
-            <button
-              onClick={() => {
-                // Placeholder for join queue or cancel functionality
-                alert('Action buttons can be added here');
-              }}
-              className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-            >
-              Join Queue
-            </button>
-          )}
-        </div>
+      {/* Timestamps */}
+      <div className="text-[10px] text-gray-400 font-medium flex gap-4 pt-4 border-t">
+        {appointment.createdAt && <span>Created: {new Date(appointment.createdAt).toLocaleString()}</span>}
+        {appointment.updatedAt && <span>Latest Update: {new Date(appointment.updatedAt).toLocaleString()}</span>}
+      </div>
+
+      {/* Action Footer */}
+      <div className="flex justify-end gap-3 pt-6">
+        <Button variant="outline" onClick={onClose} className="rounded-xl font-bold px-6 h-11">
+          Close View
+        </Button>
+        {canJoinQueue && (
+          <Button className="rounded-xl font-bold px-8 h-11 bg-primary-600 shadow-lg shadow-primary-200 flex items-center gap-2">
+            Join Console <CheckCircle2 className="w-4 h-4" />
+          </Button>
+        )}
       </div>
     </div>
   );

@@ -16,6 +16,7 @@ const getServiceUrl = (service) => {
   const urls = {
     user_service: process.env.REACT_APP_USER_SERVICE_BASE_URL,
     appointment_service: process.env.REACT_APP_APPOINTMENT_SERVICE_BASE_URL,
+    payment_service: process.env.REACT_APP_PAYMENT_SERVICE_BASE_URL,
   };
 
   // Use service-specific URL if available, otherwise use API Gateway
@@ -279,6 +280,7 @@ export const baseApi = createApi({
     'LabReport',
     'Queue',
     'SOSRequest',
+    'Invoice',
   ],
   endpoints: () => ({}),
 });

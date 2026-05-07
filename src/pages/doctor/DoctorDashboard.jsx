@@ -129,13 +129,12 @@ const DoctorDashboard = () => {
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               <div
-                className={`h-3 w-3 rounded-full ${
-                  queueData.status === 'OPEN'
+                className={`h-3 w-3 rounded-full ${queueData.status === 'OPEN'
                     ? 'bg-green-600 animate-pulse'
                     : queueData.status === 'PAUSED'
-                    ? 'bg-yellow-600'
-                    : 'bg-gray-600'
-                }`}
+                      ? 'bg-yellow-600'
+                      : 'bg-gray-600'
+                  }`}
               />
               <span className="font-semibold">Queue Status: {queueData.status}</span>
             </div>
@@ -279,11 +278,10 @@ const DoctorDashboard = () => {
                         </td>
                         <td className="px-4 py-3">
                           <span
-                            className={`px-2 py-1 text-xs font-medium rounded-full ${
-                              patient.isEmergency
+                            className={`px-2 py-1 text-xs font-medium rounded-full ${patient.isEmergency
                                 ? 'bg-red-100 text-red-800'
                                 : 'bg-gray-100 text-gray-800'
-                            }`}
+                              }`}
                           >
                             {patient.isEmergency ? 'Emergency' : 'Regular'}
                           </span>
@@ -377,11 +375,10 @@ const DoctorDashboard = () => {
                 <div>
                   <p className="text-xs text-gray-500">Status</p>
                   <span
-                    className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                      profile.verificationStatus === 'VERIFIED'
+                    className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${profile.verificationStatus === 'VERIFIED'
                         ? 'bg-green-100 text-green-800'
                         : 'bg-yellow-100 text-yellow-800'
-                    }`}
+                      }`}
                   >
                     {profile.verificationStatus}
                   </span>

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Pill, Calendar, FileText, ArrowRight, Search } from "lucide-react";
+import { Pill, Calendar, FileText, ArrowRight, Search, Users } from "lucide-react";
 import MedicationTable from "./MedicationTable";
 import PrescriptionReviewModal from "./PrescriptionReviewModal";
 import { useToast } from "../feedback/ToastProvider";
@@ -10,17 +10,22 @@ import {
 } from "../../app/api/prescriptionApi";
 
 
-const PrescriptionBuilder = ({ initialData = null, onCancel, onSuccess }) => {
+const PrescriptionBuilder = ({ initialData = null, initialPatientId = null, initialAppointmentId = null, initialPatientName = null, isLiveCall = false, onCancel, onSuccess }) => {
     const isEdit = Boolean(initialData?.id);
 
-    const [step, setStep] = useState(isEdit ? "medications" : "appointment"); // appointment | medications
+    // Determine initial step: skip appointment selection if both IDs are provided
+    // Determine initial step: skip appointment selection if both IDs are provided or if it's a live call
+    const hasPrefilledIds = (initialPatientId && initialAppointmentId) || isLiveCall;
+    const initialStep = isEdit ? "medications" : (hasPrefilledIds ? "medications" : "appointment");
+
+    const [step, setStep] = useState(initialStep); // appointment | medications
     const [searchTerm, setSearchTerm] = useState("");
     const [appointmentDetails, setAppointmentDetails] = useState(null);
 
     const [formData, setFormData] = useState({
         id: initialData?.id || null,
-        patientId: initialData?.patientId || "",
-        appointmentId: initialData?.appointmentId || "",
+        patientId: initialData?.patientId || initialPatientId || "",
+        appointmentId: initialData?.appointmentId || initialAppointmentId || "",
         diagnosisSummary: initialData?.diagnosisSummary || "",
         followUpDate: initialData?.followUpDate
             ? initialData.followUpDate.split("T")[0]
@@ -91,6 +96,17 @@ const PrescriptionBuilder = ({ initialData = null, onCancel, onSuccess }) => {
         if (!errors[field]) return;
         setErrors((prev) => ({ ...prev, [field]: null }));
     };
+
+    // Sync prefilled IDs when they become available (important for live calls)
+    useEffect(() => {
+        if (!isEdit && (initialPatientId || initialAppointmentId)) {
+            setFormData(prev => ({
+                ...prev,
+                patientId: initialPatientId || prev.patientId,
+                appointmentId: initialAppointmentId || prev.appointmentId,
+            }));
+        }
+    }, [initialPatientId, initialAppointmentId, isEdit]);
 
     const handleFieldChange = (field, value) => {
         setFormData((prev) => ({ ...prev, [field]: value }));
@@ -278,39 +294,54 @@ const PrescriptionBuilder = ({ initialData = null, onCancel, onSuccess }) => {
     // ============================================================
     return (
         <div className="space-y-6">
-            {/* Header */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            {/* Active Session Info Header */}
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-2xl p-6 mb-8 shadow-sm">
                 <div className="flex items-center justify-between">
-                    <div>
-                        <p className="text-sm font-medium text-blue-900">Selected Appointment</p>
-                        <p className="text-lg font-semibold text-blue-900 mt-1">
-                            {appointmentDetails?.patientName || "Patient"} (ID: {formData.patientId})
-                        </p>
-                        <p className="text-sm text-blue-900/80">
-                            Appointment: {formData.appointmentId || "—"}
-                        </p>
+                    <div className="flex items-center gap-5">
+                        <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-md border border-blue-50">
+                            <Users className="w-7 h-7 text-blue-600" />
+                        </div>
+                        <div>
+                            <p className="text-xs font-bold text-blue-500 uppercase tracking-widest">Active Consultation</p>
+                            <h4 className="text-xl font-extrabold text-blue-900 mt-0.5">
+                                {appointmentDetails?.patientName || initialPatientName || "Patient"}
+                            </h4>
+                            <div className="flex items-center gap-3 mt-1.5">
+                                <span className="text-xs bg-blue-100 text-blue-700 px-2.5 py-1 rounded-full font-bold">ID: {formData.patientId}</span>
+                                <span className="text-xs text-blue-400 font-medium">•</span>
+                                <span className="text-xs text-blue-600 font-semibold">Appointment: {formData.appointmentId || "—"}</span>
+                            </div>
+                        </div>
                     </div>
 
-                    {!isEdit && (
+                    {!isEdit && !hasPrefilledIds && !isLiveCall && (
                         <button
                             onClick={() => {
                                 setStep("appointment");
                                 setSearchTerm("");
                             }}
-                            className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                            className="px-4 py-2 bg-white text-blue-600 border border-blue-200 rounded-xl text-sm font-bold shadow-sm hover:bg-blue-50 transition-all"
                         >
-                            Change Appointment
+                            Change Patient
                         </button>
+                    )}
+                    {isLiveCall && (
+                        <div className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-xl text-xs font-bold ring-1 ring-green-200">
+                            <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-ping" />
+                            LIVE SESSION
+                        </div>
                     )}
                 </div>
             </div>
 
             {/* Medications */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                        <Pill className="h-5 w-5 text-indigo-600" />
-                        Medications
+            <div className="bg-white rounded-2xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-gray-100 p-8">
+                <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2.5">
+                        <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center">
+                            <Pill className="h-5 w-5 text-indigo-600" />
+                        </div>
+                        Medication Plan
                     </h3>
                 </div>
 
@@ -326,10 +357,12 @@ const PrescriptionBuilder = ({ initialData = null, onCancel, onSuccess }) => {
             </div>
 
             {/* Diagnosis & Notes */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-purple-600" />
-                    Diagnosis & Notes
+            <div className="bg-white rounded-2xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-gray-100 p-8 space-y-8">
+                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2.5">
+                    <div className="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center">
+                        <FileText className="h-5 w-5 text-purple-600" />
+                    </div>
+                    Diagnosis & Clinical Notes
                 </h3>
 
                 <div>
